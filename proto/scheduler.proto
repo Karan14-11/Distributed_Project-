@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package scheduler;
+option go_package = "proto/scheduler";
+
+service LeaderNode {
+    rpc GetServerPort(Empty) returns (ServerPort) {}
+}
+
+message Empty {}
+message ServerPort {
+    int32 port = 1;
+}
+
+
+
+
+
+
+service ServerNode {
+
+}

@@ -1,7 +1,7 @@
 package main
 
 import (
-	// "context"
+	"context"
 	// "fmt"
 	"log"
 	// // "maps"
@@ -13,7 +13,7 @@ import (
 	"flag"
 	// "os/exec"
 	// "path/filepath"
-	// "strconv"
+	"strconv"
 	// "strings"
 	// "sync"
 	// "time"
@@ -22,12 +22,13 @@ import (
 )
 
 type Leaderserver struct {
-	pb.UnimplementedLeaderNoderserver
+	pb.UnimplementedLeaderNodeServer
 	leader_node_port int
 	node_port_list   []int
 }
 
 type Node struct {
+	pb.UnimplementedServerNodeServer
 	port int
 }
 
@@ -36,17 +37,19 @@ func starting_node(port int) {
 
 	// starting node gets leader +1 port number
 	node_port := port + 1
+	go func() {
 
-	lis, err = net.Listen("tcp", ":"+strconv.Itoa(node_port))
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-	s = grpc.NewServer()
-	pb.RegisterNodeServer(s, &Node{port: node_port})
-	log.Printf("Starting node on port %d\n", node_port)
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
+		lis, err := net.Listen("tcp", ":"+strconv.Itoa(node_port))
+		if err != nil {
+			log.Fatalf("failed to listen: %v", err)
+		}
+		s := grpc.NewServer()
+		pb.RegisterServerNodeServer(s, &Node{port: node_port})
+		log.Printf("Starting node on port %d\n", node_port)
+		if err := s.Serve(lis); err != nil {
+			log.Fatalf("failed to serve: %v", err)
+		}
+	}()
 
 	// stating leader server
 
@@ -54,13 +57,26 @@ func starting_node(port int) {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	s := grpc.NewServer()
-	pb.RegisterLeaderNoderserver(s, &Leaderserver{leader_node_port: port, node_port_list: []int{node_port}})
+	s1 := grpc.NewServer()
+	pb.RegisterLeaderNodeServer(s1, &Leaderserver{leader_node_port: port, node_port_list: []int{node_port}})
 	log.Printf("Starting node on port %d\n", port)
-	if err := s.Serve(lis); err != nil {
+	if err := s1.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
+	log.Printf("Starting node on port %d\n", port)
 
+}
+
+func (s *Leaderserver) GetServerPort(ctx context.Context, in *pb.Empty) (*pb.ServerPort, error) {
+	// log.Printf("GetServerPort called with port %d\n", s.leader_node_port)
+	// log.Printf("GetServerPort called with node port list %v\n", s.node_port_list)
+	newport := 50051
+	for _, port := range s.node_port_list {
+		newport = max(newport, port)
+	}
+	newport += 1
+	s.node_port_list = append(s.node_port_list, newport)
+	return &pb.ServerPort{Port: int32(newport)}, nil
 }
 
 // connecting to an existing network
@@ -72,7 +88,7 @@ func connecting_node(port int) {
 	}
 	defer conn.Close()
 
-	client := pb.NewLeaderNoderserverClient(conn)
+	client := pb.NewLeaderNodeClient(conn)
 
 	// get the list of nodes from the leader node
 	response, err := client.GetServerPort(context.Background(), &pb.Empty{})
@@ -81,7 +97,20 @@ func connecting_node(port int) {
 	}
 	// log.Printf("Connected to leader node on port %d\n", port)
 	server_port_number := response.Port
-	log.Printf("Connected to leader node on port %d\n", server_port_number)
+	log.Printf("running on %d\n", server_port_number)
+	// log.Printf("Connected to leader node on port %d\n", server_port_number)
+	// start the node server
+	lis, err := net.Listen("tcp", ":"+strconv.Itoa(int(server_port_number)))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	s := grpc.NewServer()
+	pb.RegisterServerNodeServer(s, &Node{port: int(server_port_number)})
+	log.Printf("Starting node on port %d\n", server_port_number)
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
+	}
+	log.Printf("Starting node on port %d\n", server_port_number)
 }
 
 func main() {
@@ -102,3 +131,10 @@ func main() {
 
 	log.Fatalf("You need to either start a network or connect to an already existing network")
 }
+
+// TODO
+// 1. The port number list for all the nodes will be given back by the leader using the heartbeat mech
+// 2. Need to implement the heartbeat mechanism
+// 3. On the starting the starting node is bydefault the leader. Once it fails the election will reoccur and the port
+//50051 will shift to the next leader in the election and he will host there (Mahika )
+// 4. need to implement the function that if anynode is asked for the the get port, it redirects to the leader, if its the leader it gives the new port number and the node becomes the part of network

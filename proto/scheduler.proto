@@ -14,6 +14,11 @@ service ServerNode {
     rpc Heartbeat(Empty) returns (Empty) {}
 }
 
+service Scheduler{
+    rpc req(Empty) returns (Empty) {}
+    rpc res(Empty) returns (Empty) {}
+}
+
 
 
 

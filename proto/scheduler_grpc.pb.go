@@ -335,3 +335,143 @@ var ServerNode_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "proto/scheduler.proto",
 }
+
+const (
+	Scheduler_Req_FullMethodName = "/scheduler.Scheduler/req"
+	Scheduler_Res_FullMethodName = "/scheduler.Scheduler/res"
+)
+
+// SchedulerClient is the client API for Scheduler service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type SchedulerClient interface {
+	Req(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	Res(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+}
+
+type schedulerClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewSchedulerClient(cc grpc.ClientConnInterface) SchedulerClient {
+	return &schedulerClient{cc}
+}
+
+func (c *schedulerClient) Req(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, Scheduler_Req_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *schedulerClient) Res(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, Scheduler_Res_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// SchedulerServer is the server API for Scheduler service.
+// All implementations must embed UnimplementedSchedulerServer
+// for forward compatibility.
+type SchedulerServer interface {
+	Req(context.Context, *Empty) (*Empty, error)
+	Res(context.Context, *Empty) (*Empty, error)
+	mustEmbedUnimplementedSchedulerServer()
+}
+
+// UnimplementedSchedulerServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedSchedulerServer struct{}
+
+func (UnimplementedSchedulerServer) Req(context.Context, *Empty) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Req not implemented")
+}
+func (UnimplementedSchedulerServer) Res(context.Context, *Empty) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Res not implemented")
+}
+func (UnimplementedSchedulerServer) mustEmbedUnimplementedSchedulerServer() {}
+func (UnimplementedSchedulerServer) testEmbeddedByValue()                   {}
+
+// UnsafeSchedulerServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to SchedulerServer will
+// result in compilation errors.
+type UnsafeSchedulerServer interface {
+	mustEmbedUnimplementedSchedulerServer()
+}
+
+func RegisterSchedulerServer(s grpc.ServiceRegistrar, srv SchedulerServer) {
+	// If the following call pancis, it indicates UnimplementedSchedulerServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&Scheduler_ServiceDesc, srv)
+}
+
+func _Scheduler_Req_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SchedulerServer).Req(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Scheduler_Req_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SchedulerServer).Req(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Scheduler_Res_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SchedulerServer).Res(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Scheduler_Res_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SchedulerServer).Res(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// Scheduler_ServiceDesc is the grpc.ServiceDesc for Scheduler service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var Scheduler_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "scheduler.Scheduler",
+	HandlerType: (*SchedulerServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "req",
+			Handler:    _Scheduler_Req_Handler,
+		},
+		{
+			MethodName: "res",
+			Handler:    _Scheduler_Res_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "proto/scheduler.proto",
+}

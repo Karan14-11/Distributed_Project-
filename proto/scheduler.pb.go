@@ -341,7 +341,10 @@ const file_proto_scheduler_proto_rawDesc = "" +
 	"\bAddVoter\x12\x1a.scheduler.AddVoterRequest\x1a\x10.scheduler.Empty\"\x002?\n" +
 	"\n" +
 	"ServerNode\x121\n" +
-	"\tHeartbeat\x12\x10.scheduler.Empty\x1a\x10.scheduler.Empty\"\x00B\x11Z\x0fproto/schedulerb\x06proto3"
+	"\tHeartbeat\x12\x10.scheduler.Empty\x1a\x10.scheduler.Empty\"\x002e\n" +
+	"\tScheduler\x12+\n" +
+	"\x03req\x12\x10.scheduler.Empty\x1a\x10.scheduler.Empty\"\x00\x12+\n" +
+	"\x03res\x12\x10.scheduler.Empty\x1a\x10.scheduler.Empty\"\x00B\x11Z\x0fproto/schedulerb\x06proto3"
 
 var (
 	file_proto_scheduler_proto_rawDescOnce sync.Once
@@ -371,13 +374,17 @@ var file_proto_scheduler_proto_depIdxs = []int32{
 	1, // 3: scheduler.LeaderNode.GetConfiguration:input_type -> scheduler.Empty
 	5, // 4: scheduler.LeaderNode.AddVoter:input_type -> scheduler.AddVoterRequest
 	1, // 5: scheduler.ServerNode.Heartbeat:input_type -> scheduler.Empty
-	2, // 6: scheduler.LeaderNode.GetServerPort:output_type -> scheduler.ServerPort
-	0, // 7: scheduler.LeaderNode.Heartbeat:output_type -> scheduler.NodeList
-	4, // 8: scheduler.LeaderNode.GetConfiguration:output_type -> scheduler.RaftConfiguration
-	1, // 9: scheduler.LeaderNode.AddVoter:output_type -> scheduler.Empty
-	1, // 10: scheduler.ServerNode.Heartbeat:output_type -> scheduler.Empty
-	6, // [6:11] is the sub-list for method output_type
-	1, // [1:6] is the sub-list for method input_type
+	1, // 6: scheduler.Scheduler.req:input_type -> scheduler.Empty
+	1, // 7: scheduler.Scheduler.res:input_type -> scheduler.Empty
+	2, // 8: scheduler.LeaderNode.GetServerPort:output_type -> scheduler.ServerPort
+	0, // 9: scheduler.LeaderNode.Heartbeat:output_type -> scheduler.NodeList
+	4, // 10: scheduler.LeaderNode.GetConfiguration:output_type -> scheduler.RaftConfiguration
+	1, // 11: scheduler.LeaderNode.AddVoter:output_type -> scheduler.Empty
+	1, // 12: scheduler.ServerNode.Heartbeat:output_type -> scheduler.Empty
+	1, // 13: scheduler.Scheduler.req:output_type -> scheduler.Empty
+	1, // 14: scheduler.Scheduler.res:output_type -> scheduler.Empty
+	8, // [8:15] is the sub-list for method output_type
+	1, // [1:8] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -396,7 +403,7 @@ func file_proto_scheduler_proto_init() {
 			NumEnums:      0,
 			NumMessages:   6,
 			NumExtensions: 0,
-			NumServices:   2,
+			NumServices:   3,
 		},
 		GoTypes:           file_proto_scheduler_proto_goTypes,
 		DependencyIndexes: file_proto_scheduler_proto_depIdxs,

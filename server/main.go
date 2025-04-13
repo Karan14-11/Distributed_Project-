@@ -23,8 +23,10 @@ import (
 
 type Leaderserver struct {
 	pb.UnimplementedLeaderNodeServer
-	leader_node_port int
-	node_port_list   []int
+}
+
+type SchedulerServer struct {
+	pb.UnimplementedSchedulerServer
 }
 
 type Node struct {
@@ -34,8 +36,15 @@ type Node struct {
 	node_port_list []int
 }
 
+var Leader struct {
+	leader_node_port int
+	node_port_list   []int
+	client_nord_port int
+	global_lock      sync.Mutex
+}
+
 // starting a network
-func starting_node(port int) {
+func starting_node(port int, client_port int) {
 
 	// starting node gets leader +1 port number
 	node_port := port + 1
@@ -54,13 +63,34 @@ func starting_node(port int) {
 	}()
 
 	// stating leader server
+	go func() {
+
+		lis, err := net.Listen("tcp", ":"+strconv.Itoa(client_port))
+		if err != nil {
+			log.Fatalf("failed to listen: %v", err)
+		}
+		s1 := grpc.NewServer()
+		pb.RegisterSchedulerServer(s1, &SchedulerServer{})
+		log.Printf("Starting client node on port %d\n", client_port)
+		if err := s1.Serve(lis); err != nil {
+			log.Fatalf("failed to serve: %v", err)
+		}
+	}()
 
 	lis, err := net.Listen("tcp", ":"+strconv.Itoa(port))
+	defer lis.Close()
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s1 := grpc.NewServer()
-	pb.RegisterLeaderNodeServer(s1, &Leaderserver{leader_node_port: port, node_port_list: []int{node_port}})
+
+	Leader.global_lock.Lock()
+	Leader.leader_node_port = port
+	Leader.node_port_list = []int{node_port}
+	Leader.client_nord_port = client_port
+	Leader.global_lock.Unlock()
+
+	pb.RegisterLeaderNodeServer(s1, &Leaderserver{})
 	log.Printf("Starting node on port %d\n", port)
 	if err := s1.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
@@ -72,22 +102,24 @@ func starting_node(port int) {
 func (s *Leaderserver) GetServerPort(ctx context.Context, in *pb.Empty) (*pb.ServerPort, error) {
 
 	newport := 50051
-	for _, port := range s.node_port_list {
+	for _, port := range Leader.node_port_list {
 		newport = max(newport, port)
 	}
 	newport += 1
-	s.node_port_list = append(s.node_port_list, newport)
+	Leader.global_lock.Lock()
+	Leader.node_port_list = append(Leader.node_port_list, newport)
+	Leader.global_lock.Unlock()
 	return &pb.ServerPort{Port: int32(newport)}, nil
 }
 
 func (s *Leaderserver) heartbeat(ctx context.Context, in *pb.Empty) (*pb.NodeList, error) {
 
 	// Convert s.node_port_list from []int to []int32
-	nodesPort := make([]int32, len(s.node_port_list))
-	for i, port := range s.node_port_list {
+	nodesPort := make([]int32, len(Leader.node_port_list))
+	for i, port := range Leader.node_port_list {
 		nodesPort[i] = int32(port)
 	}
-	return &pb.NodeList{NodesPort: nodesPort, LeaderPort: int32(s.leader_node_port)}, nil
+	return &pb.NodeList{NodesPort: nodesPort, LeaderPort: int32(Leader.leader_node_port)}, nil
 
 }
 
@@ -163,12 +195,13 @@ func main() {
 	// IF FIRST NODE IT START THE NETWORK ELSE WILL NEED TO CONNECT TO AN ALREADY EXISTING NETWORK
 	first_node := flag.Bool("first_node", false, "Is this the first node?")
 	network_port := flag.Int("network_port", 0, "Port to connect to the network")
+	client_port := flag.Int("client_port", 0, "Port to connect to the client")
 	// network_ip := flag.String("network_ip", "localhost", "IP address of the network")
 
 	flag.Parse()
-	if *first_node && *network_port != 0 {
+	if *first_node && *network_port != 0 && *client_port != 0 {
 		log.Println("Starting first node...")
-		starting_node(*network_port)
+		starting_node(*network_port, *client_port)
 	} else if *network_port != 0 {
 		log.Println("Connecting to existing network...")
 		connecting_node(*network_port)

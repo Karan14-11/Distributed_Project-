@@ -19,7 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	LeaderNode_GetServerPort_FullMethodName = "/scheduler.LeaderNode/GetServerPort"
+	LeaderNode_GetServerPort_FullMethodName    = "/scheduler.LeaderNode/GetServerPort"
+	LeaderNode_Heartbeat_FullMethodName        = "/scheduler.LeaderNode/Heartbeat"
+	LeaderNode_GetConfiguration_FullMethodName = "/scheduler.LeaderNode/GetConfiguration"
+	LeaderNode_AddVoter_FullMethodName         = "/scheduler.LeaderNode/AddVoter"
 )
 
 // LeaderNodeClient is the client API for LeaderNode service.
@@ -27,6 +30,9 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type LeaderNodeClient interface {
 	GetServerPort(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ServerPort, error)
+	Heartbeat(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NodeList, error)
+	GetConfiguration(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RaftConfiguration, error)
+	AddVoter(ctx context.Context, in *AddVoterRequest, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type leaderNodeClient struct {
@@ -47,11 +53,44 @@ func (c *leaderNodeClient) GetServerPort(ctx context.Context, in *Empty, opts ..
 	return out, nil
 }
 
+func (c *leaderNodeClient) Heartbeat(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NodeList, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NodeList)
+	err := c.cc.Invoke(ctx, LeaderNode_Heartbeat_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *leaderNodeClient) GetConfiguration(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RaftConfiguration, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RaftConfiguration)
+	err := c.cc.Invoke(ctx, LeaderNode_GetConfiguration_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *leaderNodeClient) AddVoter(ctx context.Context, in *AddVoterRequest, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, LeaderNode_AddVoter_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // LeaderNodeServer is the server API for LeaderNode service.
 // All implementations must embed UnimplementedLeaderNodeServer
 // for forward compatibility.
 type LeaderNodeServer interface {
 	GetServerPort(context.Context, *Empty) (*ServerPort, error)
+	Heartbeat(context.Context, *Empty) (*NodeList, error)
+	GetConfiguration(context.Context, *Empty) (*RaftConfiguration, error)
+	AddVoter(context.Context, *AddVoterRequest) (*Empty, error)
 	mustEmbedUnimplementedLeaderNodeServer()
 }
 
@@ -64,6 +103,15 @@ type UnimplementedLeaderNodeServer struct{}
 
 func (UnimplementedLeaderNodeServer) GetServerPort(context.Context, *Empty) (*ServerPort, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetServerPort not implemented")
+}
+func (UnimplementedLeaderNodeServer) Heartbeat(context.Context, *Empty) (*NodeList, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Heartbeat not implemented")
+}
+func (UnimplementedLeaderNodeServer) GetConfiguration(context.Context, *Empty) (*RaftConfiguration, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetConfiguration not implemented")
+}
+func (UnimplementedLeaderNodeServer) AddVoter(context.Context, *AddVoterRequest) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddVoter not implemented")
 }
 func (UnimplementedLeaderNodeServer) mustEmbedUnimplementedLeaderNodeServer() {}
 func (UnimplementedLeaderNodeServer) testEmbeddedByValue()                    {}
@@ -104,6 +152,60 @@ func _LeaderNode_GetServerPort_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _LeaderNode_Heartbeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LeaderNodeServer).Heartbeat(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LeaderNode_Heartbeat_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LeaderNodeServer).Heartbeat(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _LeaderNode_GetConfiguration_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LeaderNodeServer).GetConfiguration(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LeaderNode_GetConfiguration_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LeaderNodeServer).GetConfiguration(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _LeaderNode_AddVoter_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddVoterRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LeaderNodeServer).AddVoter(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LeaderNode_AddVoter_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LeaderNodeServer).AddVoter(ctx, req.(*AddVoterRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // LeaderNode_ServiceDesc is the grpc.ServiceDesc for LeaderNode service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -115,15 +217,32 @@ var LeaderNode_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "GetServerPort",
 			Handler:    _LeaderNode_GetServerPort_Handler,
 		},
+		{
+			MethodName: "Heartbeat",
+			Handler:    _LeaderNode_Heartbeat_Handler,
+		},
+		{
+			MethodName: "GetConfiguration",
+			Handler:    _LeaderNode_GetConfiguration_Handler,
+		},
+		{
+			MethodName: "AddVoter",
+			Handler:    _LeaderNode_AddVoter_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "proto/scheduler.proto",
 }
 
+const (
+	ServerNode_Heartbeat_FullMethodName = "/scheduler.ServerNode/Heartbeat"
+)
+
 // ServerNodeClient is the client API for ServerNode service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ServerNodeClient interface {
+	Heartbeat(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type serverNodeClient struct {
@@ -134,10 +253,21 @@ func NewServerNodeClient(cc grpc.ClientConnInterface) ServerNodeClient {
 	return &serverNodeClient{cc}
 }
 
+func (c *serverNodeClient) Heartbeat(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, ServerNode_Heartbeat_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ServerNodeServer is the server API for ServerNode service.
 // All implementations must embed UnimplementedServerNodeServer
 // for forward compatibility.
 type ServerNodeServer interface {
+	Heartbeat(context.Context, *Empty) (*Empty, error)
 	mustEmbedUnimplementedServerNodeServer()
 }
 
@@ -148,6 +278,9 @@ type ServerNodeServer interface {
 // pointer dereference when methods are called.
 type UnimplementedServerNodeServer struct{}
 
+func (UnimplementedServerNodeServer) Heartbeat(context.Context, *Empty) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Heartbeat not implemented")
+}
 func (UnimplementedServerNodeServer) mustEmbedUnimplementedServerNodeServer() {}
 func (UnimplementedServerNodeServer) testEmbeddedByValue()                    {}
 
@@ -169,13 +302,36 @@ func RegisterServerNodeServer(s grpc.ServiceRegistrar, srv ServerNodeServer) {
 	s.RegisterService(&ServerNode_ServiceDesc, srv)
 }
 
+func _ServerNode_Heartbeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServerNodeServer).Heartbeat(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ServerNode_Heartbeat_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServerNodeServer).Heartbeat(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ServerNode_ServiceDesc is the grpc.ServiceDesc for ServerNode service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ServerNode_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "scheduler.ServerNode",
 	HandlerType: (*ServerNodeServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams:     []grpc.StreamDesc{},
-	Metadata:    "proto/scheduler.proto",
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Heartbeat",
+			Handler:    _ServerNode_Heartbeat_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "proto/scheduler.proto",
 }

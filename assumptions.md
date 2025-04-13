@@ -1,0 +1,1 @@
+- Each nodes connect to the leader if they want to join the network

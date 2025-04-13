@@ -21,6 +21,58 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type NodeList struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	NodesPort     []int32                `protobuf:"varint,1,rep,packed,name=nodes_port,json=nodesPort,proto3" json:"nodes_port,omitempty"`
+	LeaderPort    int32                  `protobuf:"varint,2,opt,name=leader_port,json=leaderPort,proto3" json:"leader_port,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NodeList) Reset() {
+	*x = NodeList{}
+	mi := &file_proto_scheduler_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NodeList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NodeList) ProtoMessage() {}
+
+func (x *NodeList) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_scheduler_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NodeList.ProtoReflect.Descriptor instead.
+func (*NodeList) Descriptor() ([]byte, []int) {
+	return file_proto_scheduler_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *NodeList) GetNodesPort() []int32 {
+	if x != nil {
+		return x.NodesPort
+	}
+	return nil
+}
+
+func (x *NodeList) GetLeaderPort() int32 {
+	if x != nil {
+		return x.LeaderPort
+	}
+	return 0
+}
+
 type Empty struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -29,7 +81,7 @@ type Empty struct {
 
 func (x *Empty) Reset() {
 	*x = Empty{}
-	mi := &file_proto_scheduler_proto_msgTypes[0]
+	mi := &file_proto_scheduler_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41,7 +93,7 @@ func (x *Empty) String() string {
 func (*Empty) ProtoMessage() {}
 
 func (x *Empty) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_scheduler_proto_msgTypes[0]
+	mi := &file_proto_scheduler_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -54,7 +106,7 @@ func (x *Empty) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Empty.ProtoReflect.Descriptor instead.
 func (*Empty) Descriptor() ([]byte, []int) {
-	return file_proto_scheduler_proto_rawDescGZIP(), []int{0}
+	return file_proto_scheduler_proto_rawDescGZIP(), []int{1}
 }
 
 type ServerPort struct {
@@ -66,7 +118,7 @@ type ServerPort struct {
 
 func (x *ServerPort) Reset() {
 	*x = ServerPort{}
-	mi := &file_proto_scheduler_proto_msgTypes[1]
+	mi := &file_proto_scheduler_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -78,7 +130,7 @@ func (x *ServerPort) String() string {
 func (*ServerPort) ProtoMessage() {}
 
 func (x *ServerPort) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_scheduler_proto_msgTypes[1]
+	mi := &file_proto_scheduler_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -91,7 +143,7 @@ func (x *ServerPort) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerPort.ProtoReflect.Descriptor instead.
 func (*ServerPort) Descriptor() ([]byte, []int) {
-	return file_proto_scheduler_proto_rawDescGZIP(), []int{1}
+	return file_proto_scheduler_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ServerPort) GetPort() int32 {
@@ -101,20 +153,195 @@ func (x *ServerPort) GetPort() int32 {
 	return 0
 }
 
+type RaftServer struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Address       string                 `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
+	IsVoter       bool                   `protobuf:"varint,3,opt,name=is_voter,json=isVoter,proto3" json:"is_voter,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RaftServer) Reset() {
+	*x = RaftServer{}
+	mi := &file_proto_scheduler_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RaftServer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RaftServer) ProtoMessage() {}
+
+func (x *RaftServer) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_scheduler_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RaftServer.ProtoReflect.Descriptor instead.
+func (*RaftServer) Descriptor() ([]byte, []int) {
+	return file_proto_scheduler_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *RaftServer) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RaftServer) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *RaftServer) GetIsVoter() bool {
+	if x != nil {
+		return x.IsVoter
+	}
+	return false
+}
+
+type RaftConfiguration struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Servers       []*RaftServer          `protobuf:"bytes,1,rep,name=servers,proto3" json:"servers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RaftConfiguration) Reset() {
+	*x = RaftConfiguration{}
+	mi := &file_proto_scheduler_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RaftConfiguration) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RaftConfiguration) ProtoMessage() {}
+
+func (x *RaftConfiguration) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_scheduler_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RaftConfiguration.ProtoReflect.Descriptor instead.
+func (*RaftConfiguration) Descriptor() ([]byte, []int) {
+	return file_proto_scheduler_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *RaftConfiguration) GetServers() []*RaftServer {
+	if x != nil {
+		return x.Servers
+	}
+	return nil
+}
+
+type AddVoterRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Address       string                 `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddVoterRequest) Reset() {
+	*x = AddVoterRequest{}
+	mi := &file_proto_scheduler_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddVoterRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddVoterRequest) ProtoMessage() {}
+
+func (x *AddVoterRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_scheduler_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddVoterRequest.ProtoReflect.Descriptor instead.
+func (*AddVoterRequest) Descriptor() ([]byte, []int) {
+	return file_proto_scheduler_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *AddVoterRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AddVoterRequest) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
 var File_proto_scheduler_proto protoreflect.FileDescriptor
 
 const file_proto_scheduler_proto_rawDesc = "" +
 	"\n" +
-	"\x15proto/scheduler.proto\x12\tscheduler\"\a\n" +
+	"\x15proto/scheduler.proto\x12\tscheduler\"J\n" +
+	"\bNodeList\x12\x1d\n" +
+	"\n" +
+	"nodes_port\x18\x01 \x03(\x05R\tnodesPort\x12\x1f\n" +
+	"\vleader_port\x18\x02 \x01(\x05R\n" +
+	"leaderPort\"\a\n" +
 	"\x05Empty\" \n" +
 	"\n" +
 	"ServerPort\x12\x12\n" +
-	"\x04port\x18\x01 \x01(\x05R\x04port2H\n" +
+	"\x04port\x18\x01 \x01(\x05R\x04port\"Q\n" +
+	"\n" +
+	"RaftServer\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aaddress\x18\x02 \x01(\tR\aaddress\x12\x19\n" +
+	"\bis_voter\x18\x03 \x01(\bR\aisVoter\"D\n" +
+	"\x11RaftConfiguration\x12/\n" +
+	"\aservers\x18\x01 \x03(\v2\x15.scheduler.RaftServerR\aservers\";\n" +
+	"\x0fAddVoterRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aaddress\x18\x02 \x01(\tR\aaddress2\x80\x02\n" +
 	"\n" +
 	"LeaderNode\x12:\n" +
-	"\rGetServerPort\x12\x10.scheduler.Empty\x1a\x15.scheduler.ServerPort\"\x002\f\n" +
+	"\rGetServerPort\x12\x10.scheduler.Empty\x1a\x15.scheduler.ServerPort\"\x00\x124\n" +
+	"\tHeartbeat\x12\x10.scheduler.Empty\x1a\x13.scheduler.NodeList\"\x00\x12D\n" +
+	"\x10GetConfiguration\x12\x10.scheduler.Empty\x1a\x1c.scheduler.RaftConfiguration\"\x00\x12:\n" +
+	"\bAddVoter\x12\x1a.scheduler.AddVoterRequest\x1a\x10.scheduler.Empty\"\x002?\n" +
 	"\n" +
-	"ServerNodeB\x11Z\x0fproto/schedulerb\x06proto3"
+	"ServerNode\x121\n" +
+	"\tHeartbeat\x12\x10.scheduler.Empty\x1a\x10.scheduler.Empty\"\x00B\x11Z\x0fproto/schedulerb\x06proto3"
 
 var (
 	file_proto_scheduler_proto_rawDescOnce sync.Once
@@ -128,19 +355,32 @@ func file_proto_scheduler_proto_rawDescGZIP() []byte {
 	return file_proto_scheduler_proto_rawDescData
 }
 
-var file_proto_scheduler_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_proto_scheduler_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_proto_scheduler_proto_goTypes = []any{
-	(*Empty)(nil),      // 0: scheduler.Empty
-	(*ServerPort)(nil), // 1: scheduler.ServerPort
+	(*NodeList)(nil),          // 0: scheduler.NodeList
+	(*Empty)(nil),             // 1: scheduler.Empty
+	(*ServerPort)(nil),        // 2: scheduler.ServerPort
+	(*RaftServer)(nil),        // 3: scheduler.RaftServer
+	(*RaftConfiguration)(nil), // 4: scheduler.RaftConfiguration
+	(*AddVoterRequest)(nil),   // 5: scheduler.AddVoterRequest
 }
 var file_proto_scheduler_proto_depIdxs = []int32{
-	0, // 0: scheduler.LeaderNode.GetServerPort:input_type -> scheduler.Empty
-	1, // 1: scheduler.LeaderNode.GetServerPort:output_type -> scheduler.ServerPort
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	3, // 0: scheduler.RaftConfiguration.servers:type_name -> scheduler.RaftServer
+	1, // 1: scheduler.LeaderNode.GetServerPort:input_type -> scheduler.Empty
+	1, // 2: scheduler.LeaderNode.Heartbeat:input_type -> scheduler.Empty
+	1, // 3: scheduler.LeaderNode.GetConfiguration:input_type -> scheduler.Empty
+	5, // 4: scheduler.LeaderNode.AddVoter:input_type -> scheduler.AddVoterRequest
+	1, // 5: scheduler.ServerNode.Heartbeat:input_type -> scheduler.Empty
+	2, // 6: scheduler.LeaderNode.GetServerPort:output_type -> scheduler.ServerPort
+	0, // 7: scheduler.LeaderNode.Heartbeat:output_type -> scheduler.NodeList
+	4, // 8: scheduler.LeaderNode.GetConfiguration:output_type -> scheduler.RaftConfiguration
+	1, // 9: scheduler.LeaderNode.AddVoter:output_type -> scheduler.Empty
+	1, // 10: scheduler.ServerNode.Heartbeat:output_type -> scheduler.Empty
+	6, // [6:11] is the sub-list for method output_type
+	1, // [1:6] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_proto_scheduler_proto_init() }
@@ -154,7 +394,7 @@ func file_proto_scheduler_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_scheduler_proto_rawDesc), len(file_proto_scheduler_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

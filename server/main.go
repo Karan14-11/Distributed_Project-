@@ -15,10 +15,10 @@ import (
 	// "path/filepath"
 	"strconv"
 	// "strings"
-	// "sync"
-	// "time"
 	pb "github.com/Karan14-11/Distributed_Project-/proto"
 	"google.golang.org/grpc"
+	"sync"
+	"time"
 )
 
 type Leaderserver struct {
@@ -29,7 +29,9 @@ type Leaderserver struct {
 
 type Node struct {
 	pb.UnimplementedServerNodeServer
-	port int
+	port           int
+	heartbeat_resp sync.Mutex
+	node_port_list []int
 }
 
 // starting a network
@@ -68,8 +70,7 @@ func starting_node(port int) {
 }
 
 func (s *Leaderserver) GetServerPort(ctx context.Context, in *pb.Empty) (*pb.ServerPort, error) {
-	// log.Printf("GetServerPort called with port %d\n", s.leader_node_port)
-	// log.Printf("GetServerPort called with node port list %v\n", s.node_port_list)
+
 	newport := 50051
 	for _, port := range s.node_port_list {
 		newport = max(newport, port)
@@ -77,6 +78,17 @@ func (s *Leaderserver) GetServerPort(ctx context.Context, in *pb.Empty) (*pb.Ser
 	newport += 1
 	s.node_port_list = append(s.node_port_list, newport)
 	return &pb.ServerPort{Port: int32(newport)}, nil
+}
+
+func (s *Leaderserver) heartbeat(ctx context.Context, in *pb.Empty) (*pb.NodeList, error) {
+
+	// Convert s.node_port_list from []int to []int32
+	nodesPort := make([]int32, len(s.node_port_list))
+	for i, port := range s.node_port_list {
+		nodesPort[i] = int32(port)
+	}
+	return &pb.NodeList{NodesPort: nodesPort, LeaderPort: int32(s.leader_node_port)}, nil
+
 }
 
 // connecting to an existing network
@@ -105,12 +117,45 @@ func connecting_node(port int) {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
-	pb.RegisterServerNodeServer(s, &Node{port: int(server_port_number)})
+	node := &Node{port: int(server_port_number)}
+	pb.RegisterServerNodeServer(s, node)
 	log.Printf("Starting node on port %d\n", server_port_number)
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
 	log.Printf("Starting node on port %d\n", server_port_number)
+	go func() {
+		for {
+			// Create a connection to the leader node
+			conn, err := grpc.Dial("localhost:"+strconv.Itoa(port), grpc.WithInsecure())
+			if err != nil {
+				log.Printf("Failed to connect to leader node for heartbeat: %v", err)
+				time.Sleep(5 * time.Second)
+				continue
+			}
+
+			client := pb.NewLeaderNodeClient(conn)
+
+			// Send heartbeat to the leader
+			resp, err := client.Heartbeat(context.Background(), &pb.Empty{})
+			if err != nil {
+				log.Printf("Failed to send heartbeat to leader: %v", err)
+			} else {
+				log.Printf("Heartbeat sent to leader on port %d", port)
+			}
+
+			// Process the response from the leader
+			node.heartbeat_resp.Lock()
+			node.node_port_list = make([]int, len(resp.NodesPort))
+			for i, port := range resp.NodesPort {
+				node.node_port_list[i] = int(port)
+			}
+			node.heartbeat_resp.Unlock()
+
+			conn.Close()
+			time.Sleep(5 * time.Second) // Wait before sending the next heartbeat
+		}
+	}()
 }
 
 func main() {
@@ -133,8 +178,5 @@ func main() {
 }
 
 // TODO
-// 1. The port number list for all the nodes will be given back by the leader using the heartbeat mech
-// 2. Need to implement the heartbeat mechanism
 // 3. On the starting the starting node is bydefault the leader. Once it fails the election will reoccur and the port
 //50051 will shift to the next leader in the election and he will host there (Mahika )
-// 4. need to implement the function that if anynode is asked for the the get port, it redirects to the leader, if its the leader it gives the new port number and the node becomes the part of network

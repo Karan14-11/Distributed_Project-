@@ -478,7 +478,6 @@ func connecting_node(port int) {
 
 func main() {
 
-	// IF FIRST NODE IT START THE NETWORK ELSE WILL NEED TO CONNECT TO AN ALREADY EXISTING NETWORK
 	first_node := flag.Bool("first_node", false, "Is this the first node?")
 	network_port := flag.Int("network_port", 0, "Port to connect to the network")
 	client_port := flag.Int("client_port", 0, "Port to connect to the client")
@@ -495,6 +494,12 @@ func main() {
 	log.Fatalf("You need to either start a network or connect to an already existing network")
 }
 
-// TODO
-// 3. On the starting the starting node is bydefault the leader. Once it fails the election will reoccur and the port
-//50051 will shift to the next leader in the election and he will host there (Mahika )
+// load balancing (M)
+// worker queue (K)
+// worker failure (H)
+// task workaround in new leader (H)
+// logging
+// priority in task definition and task dependency(ids of task that are dependent on this task) (K)
+// if fails , decrease the priority and reQ (K)
+// function that gives port of leader (k)
+// client (H)

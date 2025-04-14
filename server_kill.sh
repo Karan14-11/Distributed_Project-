@@ -1,22 +1,20 @@
 #!/bin/bash
 
-# Number of servers to stop
-num_servers=1
-start_port=50052  # First server port
+# Check if at least one port is provided
+if [ "$#" -eq 0 ]; then
+    echo "Usage: $0 <port1> [port2] ..."
+    exit 1
+fi
 
-# Loop to find and kill processes running on these ports
-for ((i=0; i<num_servers; i++)); do
-    port=$((start_port + i))
-    
-    # Find the process using the port
+for port in "$@"; do
     pid=$(lsof -t -i:$port)
 
     if [ -n "$pid" ]; then
-        echo "Stopping server on port $port (PID: $pid)..."
+        echo "Stopping process on port $port (PID: $pid)..."
         kill -9 $pid
     else
-        echo "No server found running on port $port."
+        echo "No process found on port $port."
     fi
 done
 
-echo "All servers stopped."
+echo "Done."

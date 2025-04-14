@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package scheduler;
-option go_package = "Distributed_Project/proto";
+option go_package = "Distributed_Project-/proto";
 
 service LeaderNode {
     rpc GetServerPort(Empty) returns (ServerPort) {}
@@ -16,17 +16,26 @@ service ServerNode {
 }
 
 service Scheduler{
-    rpc req(Empty) returns (Empty) {}
+    rpc QueryTask(Task_Query) returns (Task_Reply) {};
     rpc res(Empty) returns (Empty) {};
 }
 
+message Task_Query {
 
+    int32 task_type = 1;
+    string data_query = 2;
+}
+
+message Task_Reply {
+    int32 task_id = 1;
+}
 
 
 message NodeList {
     repeated int32 nodes_port = 1;
     int32 leader_port = 2;
     int32 client_port =3;
+    int32 task_id = 4;
 
 }
 message RequestVoteArgs {

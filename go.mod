@@ -1,4 +1,4 @@
-module github.com/Karan14-11/Distributed_Project
+module github.com/Karan14-11/Distributed_Project-
 
 go 1.24.2
 

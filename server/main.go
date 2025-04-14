@@ -8,22 +8,27 @@ import (
 	// "bufio"
 	// "io"
 	// "io/ioutil"
+	"flag"
 	"net"
 	"os"
-	"flag"
 	// "os/exec"
 	// "path/filepath"
 	"strconv"
 	// "strings"
-	pb "github.com/Karan14-11/Distributed_Project/proto"
+	pb "github.com/Karan14-11/Distributed_Project-/proto"
 	"google.golang.org/grpc"
-	"sync"
 	"math/rand"
-	"time"
 	"os/exec"
+	"sync"
+	"time"
 )
 
-
+type Task struct {
+	ID        int
+	task_type int
+	Priority  int
+	query     string
+}
 type Leaderserver struct {
 	pb.UnimplementedLeaderNodeServer
 }
@@ -34,17 +39,16 @@ type SchedulerServer struct {
 
 type Node struct {
 	pb.UnimplementedServerNodeServer
-	port           int
-	heartbeat_resp sync.Mutex
-	node_port_list []int
-	node_type			string
-	election_timeout time.Duration
-	election_reset_time time.Time
-	current_leader_port int
+	port                     int
+	heartbeat_resp           sync.Mutex
+	node_port_list           []int
+	node_type                string
+	election_timeout         time.Duration
+	election_reset_time      time.Time
+	current_leader_port      int
 	current_leader_port_node int
-	term int32
-	client_port int
-
+	term                     int32
+	client_port              int
 }
 
 var Leader struct {
@@ -52,8 +56,21 @@ var Leader struct {
 	node_port_list   []int
 	client_nord_port int
 	global_lock      sync.Mutex
+	task_queue       []Task
+	task_queue_lock  sync.Mutex
+	taskid_number    int
 }
-func(s *Node) Heartbeat(ctx context.Context, in *pb.Empty) (*pb.Empty, error) {
+
+func getUniqueTaskId() int {
+	Leader.task_queue_lock.Lock()
+	defer Leader.task_queue_lock.Unlock()
+
+	Leader.taskid_number++
+	return Leader.taskid_number
+
+}
+
+func (s *Node) Heartbeat(ctx context.Context, in *pb.Empty) (*pb.Empty, error) {
 	s.heartbeat_resp.Lock()
 	defer s.heartbeat_resp.Unlock()
 	s.election_reset_time = time.Now()
@@ -62,9 +79,8 @@ func(s *Node) Heartbeat(ctx context.Context, in *pb.Empty) (*pb.Empty, error) {
 	return &pb.Empty{}, nil
 }
 
-
 // starting a network
-func starting_node(port int, client_port int,port_node int,node_list []int) {
+func starting_node(port int, client_port int, port_node int, node_list []int) {
 
 	// starting node gets leader +1 port number
 	node_port := port_node
@@ -75,7 +91,7 @@ func starting_node(port int, client_port int,port_node int,node_list []int) {
 			log.Fatalf("failed to listen: %v", err)
 		}
 		s := grpc.NewServer()
-		pb.RegisterServerNodeServer(s, &Node{port: node_port,node_type:"leader"})
+		pb.RegisterServerNodeServer(s, &Node{port: node_port, node_type: "leader"})
 		log.Printf("Starting Node leader on port %d\n", node_port)
 		if err := s.Serve(lis); err != nil {
 			log.Fatalf("failed to serve: %v", err)
@@ -97,7 +113,6 @@ func starting_node(port int, client_port int,port_node int,node_list []int) {
 		}
 	}()
 
-
 	lis, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -110,6 +125,8 @@ func starting_node(port int, client_port int,port_node int,node_list []int) {
 
 	Leader.node_port_list = node_list
 	Leader.client_nord_port = client_port
+	Leader.task_queue = []Task{}
+	Leader.taskid_number = 0
 
 	Leader.global_lock.Unlock()
 
@@ -151,14 +168,31 @@ func starting_node(port int, client_port int,port_node int,node_list []int) {
 			}
 		}
 	}()
-	
+
 	pb.RegisterLeaderNodeServer(s1, &Leaderserver{})
 	log.Printf("Starting Leader node on port %d\n", port)
 	if err := s1.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
 	log.Printf("Starting node on port %d\n", port)
-	
+
+}
+
+func (s *SchedulerServer) Task_Query(ctx context.Context, in *pb.Task_Query) (*pb.Task_Reply, error) {
+	// log.Printf("Received Task_Query: %v", in)
+	Leader.task_queue_lock.Lock()
+	defer Leader.task_queue_lock.Unlock()
+
+	task := Task{
+		ID:        getUniqueTaskId(),
+		task_type: int(in.TaskType),
+		Priority:  0,
+		query:     in.DataQuery,
+	}
+	Leader.task_queue = append(Leader.task_queue, task)
+
+	log.Printf("Task added to queue: %v", task)
+	return &pb.Task_Reply{TaskId: int32(task.ID)}, nil
 
 }
 
@@ -182,7 +216,7 @@ func (s *Leaderserver) Heartbeat(ctx context.Context, in *pb.Empty) (*pb.NodeLis
 	for i, port := range Leader.node_port_list {
 		nodesPort[i] = int32(port)
 	}
-	return &pb.NodeList{NodesPort: nodesPort, LeaderPort: int32(Leader.leader_node_port),ClientPort :int32(Leader.client_nord_port)}, nil
+	return &pb.NodeList{NodesPort: nodesPort, LeaderPort: int32(Leader.leader_node_port), ClientPort: int32(Leader.client_nord_port), TaskId: int32(Leader.taskid_number)}, nil
 
 }
 func (s *Node) RequestVote(ctx context.Context, in *pb.RequestVoteArgs) (*pb.RequestVoteReply, error) {
@@ -191,18 +225,18 @@ func (s *Node) RequestVote(ctx context.Context, in *pb.RequestVoteArgs) (*pb.Req
 		s.term += 1
 		s.election_reset_time = time.Now()
 		s.heartbeat_resp.Unlock()
-		return &pb.RequestVoteReply{Term: s.term, VoteGranted: true},nil
+		return &pb.RequestVoteReply{Term: s.term, VoteGranted: true}, nil
 	} else {
-		return &pb.RequestVoteReply{Term: s.term, VoteGranted: false},nil
+		return &pb.RequestVoteReply{Term: s.term, VoteGranted: false}, nil
 	}
 }
-func new_leader(client_port int, port int,port_node int,node_list []int) {
+func new_leader(client_port int, port int, port_node int, node_list []int) {
 	scriptPath := "kill_ports.sh"
 	_ = os.Chmod(scriptPath, 0755)
 	log.Printf("Running script: %s", scriptPath)
 	log.Printf("Client port: %d", client_port)
 	log.Printf("Port: %d", port)
-	_ = exec.Command("./kill_ports.sh", fmt.Sprint(client_port),fmt.Sprint(port)).Run()
+	_ = exec.Command("./kill_ports.sh", fmt.Sprint(client_port), fmt.Sprint(port)).Run()
 	go func() {
 
 		lis, err := net.Listen("tcp", ":"+strconv.Itoa(client_port))
@@ -224,7 +258,6 @@ func new_leader(client_port int, port int,port_node int,node_list []int) {
 	s1 := grpc.NewServer()
 
 	// Removed unnecessary nil check for Leader as it is a struct and cannot be nil
-
 
 	Leader.global_lock.Lock()
 
@@ -272,7 +305,7 @@ func new_leader(client_port int, port int,port_node int,node_list []int) {
 			}
 		}
 	}()
-	
+
 	pb.RegisterLeaderNodeServer(s1, &Leaderserver{})
 	log.Printf("Starting node on port %d\n", port)
 	if err := s1.Serve(lis); err != nil {
@@ -281,6 +314,7 @@ func new_leader(client_port int, port int,port_node int,node_list []int) {
 	log.Printf("Starting node on port %d\n", port)
 
 }
+
 // connecting to an existing network
 func connecting_node(port int) {
 	// connect to the leader node
@@ -310,9 +344,9 @@ func connecting_node(port int) {
 	rand.Seed(int64(server_port_number)) // rand.Seed requires int64
 
 	node := &Node{
-		port:             int(server_port_number), // Assuming server_port_number is int
-		node_type:             "follower",         // Avoid using "type" as a field name
-		election_timeout: time.Duration(rand.Intn(4000)+1500) * time.Millisecond,
+		port:                int(server_port_number), // Assuming server_port_number is int
+		node_type:           "follower",              // Avoid using "type" as a field name
+		election_timeout:    time.Duration(rand.Intn(4000)+1500) * time.Millisecond,
 		election_reset_time: time.Now(),
 		current_leader_port: port,
 	}
@@ -321,78 +355,76 @@ func connecting_node(port int) {
 			time.Sleep(10 * time.Millisecond)
 			// Check if the node has not received a heartbeat for a while
 
-		if time.Now().After(node.election_reset_time.Add(node.election_timeout)) {
-		
-		// Start the election process
-		log.Printf("Starting election process on port %d\n", server_port_number)
-		node.node_type = "candidate"
-		node.heartbeat_resp.Lock()
-		node.term += 1
-		// Create a list of nodes for the election
-		votes := 1 // Start with one vote for self
-		for _, nodePort := range node.node_port_list {
-			if nodePort == node.port {
-				continue
-			}
-			conn, err := grpc.Dial("localhost:"+strconv.Itoa(nodePort), grpc.WithInsecure())
-			if err != nil {
-				log.Printf("Failed to connect to node on port %d for election: %v", nodePort, err)
-				continue
-			}
+			if time.Now().After(node.election_reset_time.Add(node.election_timeout)) {
 
-			client := pb.NewServerNodeClient(conn)
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			defer cancel()
+				// Start the election process
+				log.Printf("Starting election process on port %d\n", server_port_number)
+				node.node_type = "candidate"
+				node.heartbeat_resp.Lock()
+				node.term += 1
+				// Create a list of nodes for the election
+				votes := 1 // Start with one vote for self
+				for _, nodePort := range node.node_port_list {
+					if nodePort == node.port {
+						continue
+					}
+					conn, err := grpc.Dial("localhost:"+strconv.Itoa(nodePort), grpc.WithInsecure())
+					if err != nil {
+						log.Printf("Failed to connect to node on port %d for election: %v", nodePort, err)
+						continue
+					}
 
-			request := &pb.RequestVoteArgs{
-				Term:        node.term,
-				CandidateId: int32(node.port),
-			}
+					client := pb.NewServerNodeClient(conn)
+					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+					defer cancel()
 
-			reply, err := client.RequestVote(ctx, request)
-			log.Printf("Reply from node on port %d: %v", nodePort, reply)
-			if err != nil {
-				log.Printf("Failed to request vote from node on port %d: %v", nodePort, err)
-			} else if reply.VoteGranted {
-				votes++
-			}
-			conn.Close()
-		}
+					request := &pb.RequestVoteArgs{
+						Term:        node.term,
+						CandidateId: int32(node.port),
+					}
 
-		// Check if the node has won the election
-		log.Printf("Votes received: %d", votes)
-		log.Printf("Total nodes: %d", len(node.node_port_list))
-
-		if votes >= (len(node.node_port_list))/2 +1 {
-			log.Printf("Node on port %d has won the election", node.port)
-			node.node_type = "leader"
-			newNodePortList := []int{}
-			for _, p := range node.node_port_list {
-				if p != node.current_leader_port_node {
-					newNodePortList = append(newNodePortList, p)
+					reply, err := client.RequestVote(ctx, request)
+					log.Printf("Reply from node on port %d: %v", nodePort, reply)
+					if err != nil {
+						log.Printf("Failed to request vote from node on port %d: %v", nodePort, err)
+					} else if reply.VoteGranted {
+						votes++
+					}
+					conn.Close()
 				}
-			}
-			log.Printf("%v", newNodePortList)
-			node.node_port_list = newNodePortList
-			node.current_leader_port_node = node.port
-			// Remove the port from the node.node_port_list
-			node.heartbeat_resp.Unlock()
-			new_leader(node.client_port,port,node.current_leader_port,node.node_port_list)
-		} else {
-			log.Printf("Node on port %d failed to win the election", node.port)
-			node.node_type = "candidate"
-			node.heartbeat_resp.Unlock()
-		}
 
-	}
+				// Check if the node has won the election
+				log.Printf("Votes received: %d", votes)
+				log.Printf("Total nodes: %d", len(node.node_port_list))
+
+				if votes >= (len(node.node_port_list))/2+1 {
+					log.Printf("Node on port %d has won the election", node.port)
+					node.node_type = "leader"
+					newNodePortList := []int{}
+					for _, p := range node.node_port_list {
+						if p != node.current_leader_port_node {
+							newNodePortList = append(newNodePortList, p)
+						}
+					}
+					log.Printf("%v", newNodePortList)
+					node.node_port_list = newNodePortList
+					node.current_leader_port_node = node.port
+					// Remove the port from the node.node_port_list
+					node.heartbeat_resp.Unlock()
+					new_leader(node.client_port, port, node.current_leader_port, node.node_port_list)
+				} else {
+					log.Printf("Node on port %d failed to win the election", node.port)
+					node.node_type = "candidate"
+					node.heartbeat_resp.Unlock()
+				}
+
+			}
 		}
 	}()
 
-	
-
 	go func() {
 		for {
-			if(node.current_leader_port_node == node.port){
+			if node.current_leader_port_node == node.port {
 				log.Printf("I am the leader on port %d\n", node.port)
 				break
 			}
@@ -416,7 +448,7 @@ func connecting_node(port int) {
 				log.Printf("Failed to send heartbeat to leader: %v", err)
 				conn.Close()
 				time.Sleep(5 * time.Second) // Wait before retrying
-				continue								 
+				continue
 			} else {
 				log.Printf("Heartbeat sent to leader on port %d", port)
 			}
@@ -429,7 +461,7 @@ func connecting_node(port int) {
 			}
 			node.current_leader_port_node = int(resp.LeaderPort)
 
-			node.client_port=int(resp.ClientPort)
+			node.client_port = int(resp.ClientPort)
 			node.heartbeat_resp.Unlock()
 
 			conn.Close()
@@ -454,7 +486,7 @@ func main() {
 	flag.Parse()
 	if *first_node && *network_port != 0 && *client_port != 0 {
 		log.Println("Starting first node...")
-		starting_node(*network_port, *client_port, *network_port+1, []int{*network_port+1})
+		starting_node(*network_port, *client_port, *network_port+1, []int{*network_port + 1})
 	} else if *network_port != 0 {
 		log.Println("Connecting to existing network...")
 		connecting_node(*network_port)

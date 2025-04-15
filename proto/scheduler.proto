@@ -23,11 +23,16 @@ service ServerNode {
 
 service Scheduler{
     rpc QueryTask(Task_Query) returns (Task_Reply) {};
-    rpc res(Empty) returns (Empty) {};
+    rpc QueryClientPort(Empty) returns (ClientPort) {};
+    rpc GetTaskStatus(Task_Reply) returns (TaskStatus) {};
 }
 
 message HeartbeatRequest {
     int32 port = 1;
+}
+
+message TaskStatus {
+    bool status = 1;
 }
 
 message Task_Query {
@@ -90,6 +95,10 @@ message TaskAssignmentResponse {
 
 message Empty {}
 message ServerPort {
+    int32 port = 1;
+}
+
+message ClientPort {
     int32 port = 1;
 }
 

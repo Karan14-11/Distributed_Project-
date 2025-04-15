@@ -78,8 +78,9 @@ var Leader struct {
 	timer_worker    map[int]time.Time
 	workerLoadMutex sync.Mutex
 	taskCompletion  map[int]bool
-	taskAssign map[int][]Task
+	taskAssign      map[int][]Task
 }
+
 type LeaderData struct {
 	leaderNodePort  int
 	nodePortList    []int
@@ -92,7 +93,7 @@ type LeaderData struct {
 	timer_worker    map[int]time.Time
 	workerLoadMutex sync.Mutex
 	taskCompletion  map[int]bool
-	taskAssign map[int][]Task
+	taskAssign      map[int][]Task
 }
 
 // GetCPUUsage returns the current CPU usage as a percentage (0-100)
@@ -877,17 +878,16 @@ func startingNode(port int, clientPort int, nodePort int, initialNodes []int) {
 	// Start task processor
 	go processTaskQueue()
 	go func() {
-		for{
+		for {
 			time.Sleep(1 * time.Second)
-			nodes_true:= []int{}
+			nodes_true := []int{}
 			for _, port := range Leader.nodePortList {
 				if port == Leader.leaderNodePort {
-					nodes_true= append(nodes_true, port)
+					nodes_true = append(nodes_true, port)
 					continue
 				}
 
-
-				if(Leader.timer_worker[port].Add(7*time.Second).Before(time.Now())){
+				if Leader.timer_worker[port].Add(7 * time.Second).Before(time.Now()) {
 					log.Printf("Worker %d not responding, removing from list", port)
 					Leader.workerLoadMutex.Lock()
 					delete(Leader.workerLoads, port)
@@ -904,8 +904,8 @@ func startingNode(port int, clientPort int, nodePort int, initialNodes []int) {
 					delete(Leader.taskAssign, port)
 					Leader.globalMutex.Unlock()
 					continue
-				}else{
-					nodes_true= append(nodes_true, port)
+				} else {
+					nodes_true = append(nodes_true, port)
 				}
 			}
 			Leader.globalMutex.Lock()
@@ -985,6 +985,17 @@ func (s *SchedulerServer) QueryTask(ctx context.Context, in *pb.Task_Query) (*pb
 	return &pb.Task_Reply{TaskId: int32(task.ID)}, nil
 }
 
+func (s *SchedulerServer) QueryClientPort(ctx context.Context, in *pb.Empty) (*pb.ClientPort, error) {
+
+	return &pb.ClientPort{Port: int32(Leader.clientNodePort)}, nil
+}
+
+func (s *SchedulerServer) GetTaskStatus(ctx context.Context, in *pb.Task_Reply) (*pb.TaskStatus, error) {
+
+	status := Leader.taskCompletion[int(in.TaskId)]
+	return &pb.TaskStatus{Status: status}, nil
+}
+
 func (s *Leaderserver) GetServerPort(ctx context.Context, in *pb.Empty) (*pb.ServerPort, error) {
 	Leader.globalMutex.Lock()
 	defer Leader.globalMutex.Unlock()
@@ -1030,12 +1041,12 @@ func (s *Leaderserver) Heartbeat(ctx context.Context, in *pb.HeartbeatRequest) (
 			taskQueue := make(map[int32]*pb.NodeList_Task)
 			for _, task := range Leader.taskQueue {
 				taskQueue[int32(task.ID)] = &pb.NodeList_Task{
-					Id:             int32(task.ID),
-					TaskType:       int32(task.TaskType),
-					Priority:       int32(task.Priority),
-					Query:          task.Query,
-					AssignedTo:     int32(task.AssignedTo),
-					Status:         task.status,
+					Id:         int32(task.ID),
+					TaskType:   int32(task.TaskType),
+					Priority:   int32(task.Priority),
+					Query:      task.Query,
+					AssignedTo: int32(task.AssignedTo),
+					Status:     task.status,
 					DependencyList: func() []int32 {
 						deps := make([]int32, len(task.dependencyList))
 						for i, dep := range task.dependencyList {
@@ -1066,12 +1077,12 @@ func (s *Leaderserver) Heartbeat(ctx context.Context, in *pb.HeartbeatRequest) (
 			for port, tasks := range Leader.taskAssign {
 				for _, task := range tasks {
 					taskAssign[int32(port)] = &pb.NodeList_Task{
-						Id:             int32(task.ID),
-						TaskType:       int32(task.TaskType),
-						Priority:       int32(task.Priority),
-						Query:          task.Query,
-						AssignedTo:     int32(task.AssignedTo),
-						Status:         task.status,
+						Id:         int32(task.ID),
+						TaskType:   int32(task.TaskType),
+						Priority:   int32(task.Priority),
+						Query:      task.Query,
+						AssignedTo: int32(task.AssignedTo),
+						Status:     task.status,
 						DependencyList: func() []int32 {
 							deps := make([]int32, len(task.dependencyList))
 							for i, dep := range task.dependencyList {
@@ -1084,10 +1095,6 @@ func (s *Leaderserver) Heartbeat(ctx context.Context, in *pb.HeartbeatRequest) (
 			}
 			return taskAssign
 		}(),
-
-
-
-		
 	}, nil
 }
 
@@ -1135,17 +1142,16 @@ func promoteToLeader(clientPort, networkPort, nodePort int, nodePortList []int) 
 	// Start task processor
 	go processTaskQueue()
 	go func() {
-		for{
+		for {
 			time.Sleep(1 * time.Second)
-			nodes_true:= []int{}
+			nodes_true := []int{}
 			for _, port := range Leader.nodePortList {
 				if port == Leader.leaderNodePort {
-					nodes_true= append(nodes_true, port)
+					nodes_true = append(nodes_true, port)
 					continue
 				}
 
-
-				if(Leader.timer_worker[port].Add(7*time.Second).Before(time.Now())){
+				if Leader.timer_worker[port].Add(7 * time.Second).Before(time.Now()) {
 					log.Printf("Worker %d not responding, removing from list", port)
 					Leader.workerLoadMutex.Lock()
 					delete(Leader.workerLoads, port)
@@ -1162,8 +1168,8 @@ func promoteToLeader(clientPort, networkPort, nodePort int, nodePortList []int) 
 					delete(Leader.taskAssign, port)
 					Leader.globalMutex.Unlock()
 					continue
-				}else{
-					nodes_true= append(nodes_true, port)
+				} else {
+					nodes_true = append(nodes_true, port)
 				}
 			}
 			Leader.globalMutex.Lock()
@@ -1425,12 +1431,12 @@ func connectToNetwork(networkPort int) {
 			Leader.taskQueue = []Task{}
 			for id, task := range resp.TaskQueue {
 				Leader.taskQueue = append(Leader.taskQueue, Task{
-					ID:             int(id),
-					TaskType:       int(task.TaskType),
-					Priority:       int(task.Priority),
-					Query:          task.Query,
-					AssignedTo:     int(task.AssignedTo),
-					status:         task.Status,
+					ID:         int(id),
+					TaskType:   int(task.TaskType),
+					Priority:   int(task.Priority),
+					Query:      task.Query,
+					AssignedTo: int(task.AssignedTo),
+					status:     task.Status,
 					dependencyList: func() []int {
 						deps := make([]int, len(task.DependencyList))
 						for i, dep := range task.DependencyList {
@@ -1451,12 +1457,12 @@ func connectToNetwork(networkPort int) {
 			Leader.taskAssign = make(map[int][]Task)
 			for port, task := range resp.TaskAssign {
 				Leader.taskAssign[int(port)] = append(Leader.taskAssign[int(port)], Task{
-					ID:             int(task.Id),
-					TaskType:       int(task.TaskType),
-					Priority:       int(task.Priority),
-					Query:          task.Query,
-					AssignedTo:     int(task.AssignedTo),
-					status:         task.Status,
+					ID:         int(task.Id),
+					TaskType:   int(task.TaskType),
+					Priority:   int(task.Priority),
+					Query:      task.Query,
+					AssignedTo: int(task.AssignedTo),
+					status:     task.Status,
 					dependencyList: func() []int {
 						deps := make([]int, len(task.DependencyList))
 						for i, dep := range task.DependencyList {

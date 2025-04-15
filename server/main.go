@@ -28,10 +28,10 @@ import (
 )
 
 type Task struct {
-	ID        int
-	TaskType  int
-	Priority  int
-	Query     string
+	ID         int
+	TaskType   int
+	Priority   int
+	Query      string
 	AssignedTo int
 }
 
@@ -45,21 +45,22 @@ type SchedulerServer struct {
 
 type Node struct {
 	pb.UnimplementedServerNodeServer
-	port                int
-	heartbeatMutex      sync.Mutex
-	nodePortList        []int
-	nodeType            string
-	electionTimeout     time.Duration
-	electionResetTime   time.Time
-	currentLeaderPort   int
-	term                int32
-	clientPort          int
-	cpuUsage            float64
-	cpuUsageMutex       sync.Mutex
-	initialized         bool
-	initMutex           sync.Mutex
-	activeTasks         int
-	activeTasksMutex    sync.Mutex
+	port              int
+	heartbeatMutex    sync.Mutex
+	nodePortList      []int
+	nodeType          string
+	electionTimeout   time.Duration
+	electionResetTime time.Time
+	currentLeaderPort int
+	localLeaderPort   int
+	term              int32
+	clientPort        int
+	cpuUsage          float64
+	cpuUsageMutex     sync.Mutex
+	initialized       bool
+	initMutex         sync.Mutex
+	activeTasks       int
+	activeTasksMutex  sync.Mutex
 }
 
 var Leader struct {
@@ -70,39 +71,39 @@ var Leader struct {
 	taskQueue       []Task
 	taskQueueMutex  sync.Mutex
 	taskIDNumber    int
-	workerLoads     map[int]float64  // Changed to float64 for CPU percentage
+	workerLoads     map[int]float64 // Changed to float64 for CPU percentage
 	workerLoadMutex sync.Mutex
 }
 
 // GetCPUUsage returns the current CPU usage as a percentage (0-100)
 func getCPUUsage() float64 {
-    // Cross-platform implementation that works on both Linux and macOS
-    var cmd *exec.Cmd
-    
-    // Try Linux first
-    cmd = exec.Command("sh", "-c", "grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$4+$5)} END {print usage}'")
-    output, err := cmd.Output()
-    if err == nil && len(output) > 0 {
-        usage, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
-        if err == nil {
-            return usage
-        }
-    }
-    
-    // Fallback to macOS command
-    cmd = exec.Command("sh", "-c", "top -l 1 | grep -E '^CPU' | awk '{print $3 + $5}'")
-    output, err = cmd.Output()
-    if err == nil && len(output) > 0 {
-        usage, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
-        if err == nil {
-            return usage
-        }
-    }
-    
-    // If all else fails, simulate CPU usage to allow system to function
-    // This simulates a random CPU usage between 20% and 80%
-    log.Printf("Falling back to simulated CPU usage")
-    return 20.0 + rand.Float64()*60.0
+	// Cross-platform implementation that works on both Linux and macOS
+	var cmd *exec.Cmd
+
+	// Try Linux first
+	cmd = exec.Command("sh", "-c", "grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$4+$5)} END {print usage}'")
+	output, err := cmd.Output()
+	if err == nil && len(output) > 0 {
+		usage, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
+		if err == nil {
+			return usage
+		}
+	}
+
+	// Fallback to macOS command
+	cmd = exec.Command("sh", "-c", "top -l 1 | grep -E '^CPU' | awk '{print $3 + $5}'")
+	output, err = cmd.Output()
+	if err == nil && len(output) > 0 {
+		usage, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
+		if err == nil {
+			return usage
+		}
+	}
+
+	// If all else fails, simulate CPU usage to allow system to function
+	// This simulates a random CPU usage between 20% and 80%
+	log.Printf("Falling back to simulated CPU usage")
+	return 20.0 + rand.Float64()*60.0
 }
 
 func getUniqueTaskID() int {
@@ -120,93 +121,92 @@ func (s *Node) Heartbeat(ctx context.Context, in *pb.Empty) (*pb.Empty, error) {
 	return &pb.Empty{}, nil
 }
 
-
 func (s *Node) AssignTask(ctx context.Context, in *pb.TaskAssignment) (*pb.TaskAssignmentResponse, error) {
-    // Get current CPU load
-    cpuLoad := getCPUUsage()
-    
-    // Increment active tasks counter
-    s.activeTasksMutex.Lock()
-    s.activeTasks++
-    activeTaskCount := s.activeTasks
-    s.activeTasksMutex.Unlock()
-    
-    // Calculate effective load based on both CPU and task count
-    effectiveLoad := cpuLoad + float64(activeTaskCount*10) // Each task adds 10% to effective load
-    
-    s.cpuUsageMutex.Lock()
-    s.cpuUsage = effectiveLoad // Use effective load instead of just CPU
-    s.cpuUsageMutex.Unlock()
-    
-    log.Printf("Worker %d: Starting task %d (CPU: %.2f%%, Tasks: %d)", 
-        s.port, in.TaskId, cpuLoad, activeTaskCount)
-    log.Printf("Worker %d: Effective load for task %d: %.2f%%", 
-        s.port, in.TaskId, effectiveLoad)
-    
-    // Report new load immediately
-    conn, err := grpc.Dial("localhost:"+strconv.Itoa(s.currentLeaderPort), grpc.WithInsecure())
-    if err == nil {
-        client := pb.NewLeaderNodeClient(conn)
-        _, _ = client.ReportLoad(context.Background(), &pb.WorkerLoad{
-            Port: int32(s.port),
-            Load: int32(effectiveLoad),
-        })
-        conn.Close()
-    }
-    
-    // Process the task in a goroutine
-    go func() {
-        // Simulate task processing
-        processingTime := time.Duration(rand.Intn(2)+1) * time.Second // Shorter for better testing
-        time.Sleep(processingTime)
-        
-        // Decrement active tasks counter
-        s.activeTasksMutex.Lock()
-        s.activeTasks--
-        newActiveTaskCount := s.activeTasks
-        s.activeTasksMutex.Unlock()
-        
-        log.Printf("Worker %d: Completed task %d (remaining tasks: %d)", 
-            s.port, in.TaskId, newActiveTaskCount)
-        
-        // Report updated CPU load after task completion
-        currentCpuLoad := getCPUUsage()
-        newEffectiveLoad := currentCpuLoad + float64(newActiveTaskCount*10)
-        
-        s.cpuUsageMutex.Lock()
-        s.cpuUsage = newEffectiveLoad
-        s.cpuUsageMutex.Unlock()
-        
-        // Report to leader
-        conn, err := grpc.Dial("localhost:"+strconv.Itoa(s.currentLeaderPort), grpc.WithInsecure())
-        if err != nil {
-            log.Printf("Worker %d: Failed to connect to leader: %v", s.port, err)
-            return
-        }
-        defer conn.Close()
-        
-        client := pb.NewLeaderNodeClient(conn)
-        _, err = client.ReportLoad(context.Background(), &pb.WorkerLoad{
-            Port: int32(s.port),
-            Load: int32(newEffectiveLoad),
-        })
-        
-        if err != nil {
-            log.Printf("Worker %d: Failed to report load: %v", s.port, err)
-        }
-    }()
-    
-    return &pb.TaskAssignmentResponse{Success: true}, nil
+	// Get current CPU load
+	cpuLoad := getCPUUsage()
+
+	// Increment active tasks counter
+	s.activeTasksMutex.Lock()
+	s.activeTasks++
+	activeTaskCount := s.activeTasks
+	s.activeTasksMutex.Unlock()
+
+	// Calculate effective load based on both CPU and task count
+	effectiveLoad := cpuLoad + float64(activeTaskCount*10) // Each task adds 10% to effective load
+
+	s.cpuUsageMutex.Lock()
+	s.cpuUsage = effectiveLoad // Use effective load instead of just CPU
+	s.cpuUsageMutex.Unlock()
+
+	log.Printf("Worker %d: Starting task %d (CPU: %.2f%%, Tasks: %d)",
+		s.port, in.TaskId, cpuLoad, activeTaskCount)
+	log.Printf("Worker %d: Effective load for task %d: %.2f%%",
+		s.port, in.TaskId, effectiveLoad)
+
+	// Report new load immediately
+	conn, err := grpc.Dial("localhost:"+strconv.Itoa(s.currentLeaderPort), grpc.WithInsecure())
+	if err == nil {
+		client := pb.NewLeaderNodeClient(conn)
+		_, _ = client.ReportLoad(context.Background(), &pb.WorkerLoad{
+			Port: int32(s.port),
+			Load: int32(effectiveLoad),
+		})
+		conn.Close()
+	}
+
+	// Process the task in a goroutine
+	go func() {
+		// Simulate task processing
+		processingTime := time.Duration(rand.Intn(2)+1) * time.Second // Shorter for better testing
+		time.Sleep(processingTime)
+
+		// Decrement active tasks counter
+		s.activeTasksMutex.Lock()
+		s.activeTasks--
+		newActiveTaskCount := s.activeTasks
+		s.activeTasksMutex.Unlock()
+
+		log.Printf("Worker %d: Completed task %d (remaining tasks: %d)",
+			s.port, in.TaskId, newActiveTaskCount)
+
+		// Report updated CPU load after task completion
+		currentCpuLoad := getCPUUsage()
+		newEffectiveLoad := currentCpuLoad + float64(newActiveTaskCount*10)
+
+		s.cpuUsageMutex.Lock()
+		s.cpuUsage = newEffectiveLoad
+		s.cpuUsageMutex.Unlock()
+
+		// Report to leader
+		conn, err := grpc.Dial("localhost:"+strconv.Itoa(s.currentLeaderPort), grpc.WithInsecure())
+		if err != nil {
+			log.Printf("Worker %d: Failed to connect to leader: %v", s.port, err)
+			return
+		}
+		defer conn.Close()
+
+		client := pb.NewLeaderNodeClient(conn)
+		_, err = client.ReportLoad(context.Background(), &pb.WorkerLoad{
+			Port: int32(s.port),
+			Load: int32(newEffectiveLoad),
+		})
+
+		if err != nil {
+			log.Printf("Worker %d: Failed to report load: %v", s.port, err)
+		}
+	}()
+
+	return &pb.TaskAssignmentResponse{Success: true}, nil
 }
 
 func (s *Leaderserver) ReportLoad(ctx context.Context, in *pb.WorkerLoad) (*pb.Empty, error) {
 	Leader.workerLoadMutex.Lock()
 	defer Leader.workerLoadMutex.Unlock()
-	
+
 	// Store load as float64 for more accurate comparisons
 	Leader.workerLoads[int(in.Port)] = float64(in.Load)
 	log.Printf("Worker %d reported CPU load: %.2f%%", in.Port, float64(in.Load))
-	
+
 	return &pb.Empty{}, nil
 }
 
@@ -248,7 +248,7 @@ func getLeastLoadedWorker() (int, bool) {
 
 	// If we have multiple candidates with similar load, use round-robin
 	selectedPort := candidateWorkers[0] // Default to first worker
-	
+
 	if len(candidateWorkers) > 1 {
 		// Find index of last selected worker
 		lastIndex := -1
@@ -258,16 +258,16 @@ func getLeastLoadedWorker() (int, bool) {
 				break
 			}
 		}
-		
+
 		// Select next worker in the list (round-robin)
 		nextIndex := (lastIndex + 1) % len(candidateWorkers)
 		selectedPort = candidateWorkers[nextIndex]
 	}
-	
+
 	// Update last selected worker
 	lastSelectedWorker = selectedPort
-	
-	log.Printf("Selected worker %d with CPU load %.2f%% (from %d candidates)", 
+
+	log.Printf("Selected worker %d with CPU load %.2f%% (from %d candidates)",
 		selectedPort, Leader.workerLoads[selectedPort], len(candidateWorkers))
 	return selectedPort, true
 }
@@ -371,17 +371,17 @@ func startingNode(port int, clientPort int, nodePort int, initialNodes []int) {
 		pb.RegisterServerNodeServer(s, node)
 		reflection.Register(s)
 		log.Printf("Node server started on port %d", nodePort)
-		
+
 		// Start CPU monitoring in background
 		go func() {
 			for {
 				time.Sleep(2 * time.Second)
 				cpuLoad := getCPUUsage()
-				
+
 				node.cpuUsageMutex.Lock()
 				node.cpuUsage = cpuLoad
 				node.cpuUsageMutex.Unlock()
-				
+
 				// Report to leader if we're not the leader
 				if node.nodeType != "leader" {
 					conn, err := grpc.Dial("localhost:"+strconv.Itoa(node.currentLeaderPort), grpc.WithInsecure())
@@ -389,22 +389,22 @@ func startingNode(port int, clientPort int, nodePort int, initialNodes []int) {
 						log.Printf("Failed to connect to leader for load reporting: %v", err)
 						continue
 					}
-					
+
 					client := pb.NewLeaderNodeClient(conn)
 					_, err = client.ReportLoad(context.Background(), &pb.WorkerLoad{
 						Port: int32(node.port),
 						Load: int32(cpuLoad),
 					})
-					
+
 					if err != nil {
 						log.Printf("Failed to report load: %v", err)
 					}
-					
+
 					conn.Close()
 				}
 			}
 		}()
-		
+
 		if err := s.Serve(lis); err != nil {
 			log.Fatalf("Failed to serve node: %v", err)
 		}
@@ -675,17 +675,17 @@ func connectToNetwork(networkPort int) {
 		currentLeaderPort: networkPort,
 		cpuUsage:          0,
 	}
-	
+
 	// Start CPU monitoring
 	go func() {
 		for {
 			time.Sleep(2 * time.Second)
 			cpuLoad := getCPUUsage()
-			
+
 			node.cpuUsageMutex.Lock()
 			node.cpuUsage = cpuLoad
 			node.cpuUsageMutex.Unlock()
-			
+
 			// Only report if we're not in election process
 			if node.nodeType == "follower" {
 				// Report to leader
@@ -694,17 +694,17 @@ func connectToNetwork(networkPort int) {
 					log.Printf("Failed to connect to leader for load reporting: %v", err)
 					continue
 				}
-				
+
 				client := pb.NewLeaderNodeClient(conn)
 				_, err = client.ReportLoad(context.Background(), &pb.WorkerLoad{
 					Port: int32(node.port),
 					Load: int32(cpuLoad),
 				})
-				
+
 				if err != nil {
 					log.Printf("Failed to report load: %v", err)
 				}
-				
+
 				conn.Close()
 			}
 		}
@@ -792,7 +792,7 @@ func connectToNetwork(networkPort int) {
 				node.nodePortList[i] = int(port)
 			}
 			node.clientPort = int(resp.ClientPort)
-			node.electionResetTime = time.Now()
+			node.localLeaderPort = int(resp.LeaderPort)
 			node.heartbeatMutex.Unlock()
 			conn.Close()
 

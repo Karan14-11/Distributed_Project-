@@ -10,6 +10,8 @@ service LeaderNode {
     rpc GetConfiguration(Empty) returns (RaftConfiguration) {}
     rpc AddVoter(AddVoterRequest) returns (Empty) {}
     rpc ReportLoad(WorkerLoad) returns (Empty) {}
+    rpc TaskCompletionResponse(Task_Reply) returns (Empty){};
+
 }
 
 service ServerNode {

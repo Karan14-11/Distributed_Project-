@@ -749,7 +749,7 @@ const file_proto_scheduler_proto_rawDesc = "" +
 	"\aservers\x18\x01 \x03(\v2\x15.scheduler.RaftServerR\aservers\";\n" +
 	"\x0fAddVoterRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\aaddress\x18\x02 \x01(\tR\aaddress2\xb9\x02\n" +
+	"\aaddress\x18\x02 \x01(\tR\aaddress2\xfe\x02\n" +
 	"\n" +
 	"LeaderNode\x12:\n" +
 	"\rGetServerPort\x12\x10.scheduler.Empty\x1a\x15.scheduler.ServerPort\"\x00\x124\n" +
@@ -757,7 +757,8 @@ const file_proto_scheduler_proto_rawDesc = "" +
 	"\x10GetConfiguration\x12\x10.scheduler.Empty\x1a\x1c.scheduler.RaftConfiguration\"\x00\x12:\n" +
 	"\bAddVoter\x12\x1a.scheduler.AddVoterRequest\x1a\x10.scheduler.Empty\"\x00\x127\n" +
 	"\n" +
-	"ReportLoad\x12\x15.scheduler.WorkerLoad\x1a\x10.scheduler.Empty\"\x002\x93\x02\n" +
+	"ReportLoad\x12\x15.scheduler.WorkerLoad\x1a\x10.scheduler.Empty\"\x00\x12C\n" +
+	"\x16TaskCompletionResponse\x12\x15.scheduler.Task_Reply\x1a\x10.scheduler.Empty\"\x002\x93\x02\n" +
 	"\n" +
 	"ServerNode\x121\n" +
 	"\tHeartbeat\x12\x10.scheduler.Empty\x1a\x10.scheduler.Empty\"\x00\x12H\n" +
@@ -804,25 +805,27 @@ var file_proto_scheduler_proto_depIdxs = []int32{
 	8,  // 3: scheduler.LeaderNode.GetConfiguration:input_type -> scheduler.Empty
 	12, // 4: scheduler.LeaderNode.AddVoter:input_type -> scheduler.AddVoterRequest
 	5,  // 5: scheduler.LeaderNode.ReportLoad:input_type -> scheduler.WorkerLoad
-	8,  // 6: scheduler.ServerNode.Heartbeat:input_type -> scheduler.Empty
-	3,  // 7: scheduler.ServerNode.RequestVote:input_type -> scheduler.RequestVoteArgs
-	6,  // 8: scheduler.ServerNode.AssignTask:input_type -> scheduler.TaskAssignment
-	8,  // 9: scheduler.ServerNode.GetServerPort:input_type -> scheduler.Empty
-	0,  // 10: scheduler.Scheduler.QueryTask:input_type -> scheduler.Task_Query
-	8,  // 11: scheduler.Scheduler.res:input_type -> scheduler.Empty
-	9,  // 12: scheduler.LeaderNode.GetServerPort:output_type -> scheduler.ServerPort
-	2,  // 13: scheduler.LeaderNode.Heartbeat:output_type -> scheduler.NodeList
-	11, // 14: scheduler.LeaderNode.GetConfiguration:output_type -> scheduler.RaftConfiguration
-	8,  // 15: scheduler.LeaderNode.AddVoter:output_type -> scheduler.Empty
-	8,  // 16: scheduler.LeaderNode.ReportLoad:output_type -> scheduler.Empty
-	8,  // 17: scheduler.ServerNode.Heartbeat:output_type -> scheduler.Empty
-	4,  // 18: scheduler.ServerNode.RequestVote:output_type -> scheduler.RequestVoteReply
-	7,  // 19: scheduler.ServerNode.AssignTask:output_type -> scheduler.TaskAssignmentResponse
-	9,  // 20: scheduler.ServerNode.GetServerPort:output_type -> scheduler.ServerPort
-	1,  // 21: scheduler.Scheduler.QueryTask:output_type -> scheduler.Task_Reply
-	8,  // 22: scheduler.Scheduler.res:output_type -> scheduler.Empty
-	12, // [12:23] is the sub-list for method output_type
-	1,  // [1:12] is the sub-list for method input_type
+	1,  // 6: scheduler.LeaderNode.TaskCompletionResponse:input_type -> scheduler.Task_Reply
+	8,  // 7: scheduler.ServerNode.Heartbeat:input_type -> scheduler.Empty
+	3,  // 8: scheduler.ServerNode.RequestVote:input_type -> scheduler.RequestVoteArgs
+	6,  // 9: scheduler.ServerNode.AssignTask:input_type -> scheduler.TaskAssignment
+	8,  // 10: scheduler.ServerNode.GetServerPort:input_type -> scheduler.Empty
+	0,  // 11: scheduler.Scheduler.QueryTask:input_type -> scheduler.Task_Query
+	8,  // 12: scheduler.Scheduler.res:input_type -> scheduler.Empty
+	9,  // 13: scheduler.LeaderNode.GetServerPort:output_type -> scheduler.ServerPort
+	2,  // 14: scheduler.LeaderNode.Heartbeat:output_type -> scheduler.NodeList
+	11, // 15: scheduler.LeaderNode.GetConfiguration:output_type -> scheduler.RaftConfiguration
+	8,  // 16: scheduler.LeaderNode.AddVoter:output_type -> scheduler.Empty
+	8,  // 17: scheduler.LeaderNode.ReportLoad:output_type -> scheduler.Empty
+	8,  // 18: scheduler.LeaderNode.TaskCompletionResponse:output_type -> scheduler.Empty
+	8,  // 19: scheduler.ServerNode.Heartbeat:output_type -> scheduler.Empty
+	4,  // 20: scheduler.ServerNode.RequestVote:output_type -> scheduler.RequestVoteReply
+	7,  // 21: scheduler.ServerNode.AssignTask:output_type -> scheduler.TaskAssignmentResponse
+	9,  // 22: scheduler.ServerNode.GetServerPort:output_type -> scheduler.ServerPort
+	1,  // 23: scheduler.Scheduler.QueryTask:output_type -> scheduler.Task_Reply
+	8,  // 24: scheduler.Scheduler.res:output_type -> scheduler.Empty
+	13, // [13:25] is the sub-list for method output_type
+	1,  // [1:13] is the sub-list for method input_type
 	1,  // [1:1] is the sub-list for extension type_name
 	1,  // [1:1] is the sub-list for extension extendee
 	0,  // [0:1] is the sub-list for field type_name

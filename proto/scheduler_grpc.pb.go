@@ -19,11 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	LeaderNode_GetServerPort_FullMethodName    = "/scheduler.LeaderNode/GetServerPort"
-	LeaderNode_Heartbeat_FullMethodName        = "/scheduler.LeaderNode/Heartbeat"
-	LeaderNode_GetConfiguration_FullMethodName = "/scheduler.LeaderNode/GetConfiguration"
-	LeaderNode_AddVoter_FullMethodName         = "/scheduler.LeaderNode/AddVoter"
-	LeaderNode_ReportLoad_FullMethodName       = "/scheduler.LeaderNode/ReportLoad"
+	LeaderNode_GetServerPort_FullMethodName          = "/scheduler.LeaderNode/GetServerPort"
+	LeaderNode_Heartbeat_FullMethodName              = "/scheduler.LeaderNode/Heartbeat"
+	LeaderNode_GetConfiguration_FullMethodName       = "/scheduler.LeaderNode/GetConfiguration"
+	LeaderNode_AddVoter_FullMethodName               = "/scheduler.LeaderNode/AddVoter"
+	LeaderNode_ReportLoad_FullMethodName             = "/scheduler.LeaderNode/ReportLoad"
+	LeaderNode_TaskCompletionResponse_FullMethodName = "/scheduler.LeaderNode/TaskCompletionResponse"
 )
 
 // LeaderNodeClient is the client API for LeaderNode service.
@@ -35,6 +36,7 @@ type LeaderNodeClient interface {
 	GetConfiguration(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*RaftConfiguration, error)
 	AddVoter(ctx context.Context, in *AddVoterRequest, opts ...grpc.CallOption) (*Empty, error)
 	ReportLoad(ctx context.Context, in *WorkerLoad, opts ...grpc.CallOption) (*Empty, error)
+	TaskCompletionResponse(ctx context.Context, in *Task_Reply, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type leaderNodeClient struct {
@@ -95,6 +97,16 @@ func (c *leaderNodeClient) ReportLoad(ctx context.Context, in *WorkerLoad, opts 
 	return out, nil
 }
 
+func (c *leaderNodeClient) TaskCompletionResponse(ctx context.Context, in *Task_Reply, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, LeaderNode_TaskCompletionResponse_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // LeaderNodeServer is the server API for LeaderNode service.
 // All implementations must embed UnimplementedLeaderNodeServer
 // for forward compatibility.
@@ -104,6 +116,7 @@ type LeaderNodeServer interface {
 	GetConfiguration(context.Context, *Empty) (*RaftConfiguration, error)
 	AddVoter(context.Context, *AddVoterRequest) (*Empty, error)
 	ReportLoad(context.Context, *WorkerLoad) (*Empty, error)
+	TaskCompletionResponse(context.Context, *Task_Reply) (*Empty, error)
 	mustEmbedUnimplementedLeaderNodeServer()
 }
 
@@ -128,6 +141,9 @@ func (UnimplementedLeaderNodeServer) AddVoter(context.Context, *AddVoterRequest)
 }
 func (UnimplementedLeaderNodeServer) ReportLoad(context.Context, *WorkerLoad) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReportLoad not implemented")
+}
+func (UnimplementedLeaderNodeServer) TaskCompletionResponse(context.Context, *Task_Reply) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TaskCompletionResponse not implemented")
 }
 func (UnimplementedLeaderNodeServer) mustEmbedUnimplementedLeaderNodeServer() {}
 func (UnimplementedLeaderNodeServer) testEmbeddedByValue()                    {}
@@ -240,6 +256,24 @@ func _LeaderNode_ReportLoad_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _LeaderNode_TaskCompletionResponse_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Task_Reply)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LeaderNodeServer).TaskCompletionResponse(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LeaderNode_TaskCompletionResponse_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LeaderNodeServer).TaskCompletionResponse(ctx, req.(*Task_Reply))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // LeaderNode_ServiceDesc is the grpc.ServiceDesc for LeaderNode service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -266,6 +300,10 @@ var LeaderNode_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReportLoad",
 			Handler:    _LeaderNode_ReportLoad_Handler,
+		},
+		{
+			MethodName: "TaskCompletionResponse",
+			Handler:    _LeaderNode_TaskCompletionResponse_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

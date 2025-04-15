@@ -1,12 +1,12 @@
-// // load balancing (M)
-// // worker queue (K)
+// // load balancing (M) DONE
+// // worker queue (K) NOT NEEDED
 // // worker failure (H)
 // // task workaround in new leader (H)
-// // logging
-// // priority in task definition and task dependency(ids of task that are dependent on this task) (K)
-// // if fails , decrease the priority and reQ (K)
-// // function that gives port of leader (k)
-// // client (H)
+// // logging DONE
+// // priority in task definition and task dependency(ids of task that are dependent on this task) (K) DONE
+// // if fails , decrease the priority and reQ (K) DONE
+// // function that gives port of leader (k) DONE
+// // client (M)
 package main
 
 import (
@@ -29,11 +29,13 @@ import (
 )
 
 type Task struct {
-	ID         int
-	TaskType   int
-	Priority   int
-	Query      string
-	AssignedTo int
+	ID             int
+	TaskType       int
+	Priority       int
+	Query          string
+	AssignedTo     int
+	status         bool
+	dependencyList []int
 }
 
 type Leaderserver struct {
@@ -74,6 +76,7 @@ var Leader struct {
 	taskIDNumber    int
 	workerLoads     map[int]float64 // Changed to float64 for CPU percentage
 	workerLoadMutex sync.Mutex
+	taskCompletion  map[int]bool
 }
 
 // GetCPUUsage returns the current CPU usage as a percentage (0-100)
@@ -170,6 +173,23 @@ func (s *Node) AssignTask(ctx context.Context, in *pb.TaskAssignment) (*pb.TaskA
 		log.Printf("Worker %d: Completed task %d (remaining tasks: %d)",
 			s.port, in.TaskId, newActiveTaskCount)
 
+		// Notify leader about task completion
+		conn, err := grpc.Dial("localhost:"+strconv.Itoa(s.currentLeaderPort), grpc.WithInsecure())
+		if err != nil {
+			log.Printf("Worker %d: Failed to connect to leader to report task completion: %v", s.port, err)
+			return
+		}
+		defer conn.Close()
+
+		client := pb.NewLeaderNodeClient(conn)
+		_, err = client.TaskCompletionResponse(context.Background(), &pb.Task_Reply{TaskId: in.TaskId})
+
+		if err != nil {
+			log.Printf("Worker %d: Failed to report task completion for task %d: %v", s.port, in.TaskId, err)
+		} else {
+			log.Printf("Worker %d: Successfully reported task completion for task %d", s.port, in.TaskId)
+		}
+
 		// Report updated CPU load after task completion
 		currentCpuLoad := getCPUUsage()
 		newEffectiveLoad := currentCpuLoad + float64(newActiveTaskCount*10)
@@ -179,14 +199,6 @@ func (s *Node) AssignTask(ctx context.Context, in *pb.TaskAssignment) (*pb.TaskA
 		s.cpuUsageMutex.Unlock()
 
 		// Report to leader
-		conn, err := grpc.Dial("localhost:"+strconv.Itoa(s.currentLeaderPort), grpc.WithInsecure())
-		if err != nil {
-			log.Printf("Worker %d: Failed to connect to leader: %v", s.port, err)
-			return
-		}
-		defer conn.Close()
-
-		client := pb.NewLeaderNodeClient(conn)
 		_, err = client.ReportLoad(context.Background(), &pb.WorkerLoad{
 			Port: int32(s.port),
 			Load: int32(newEffectiveLoad),
@@ -198,6 +210,21 @@ func (s *Node) AssignTask(ctx context.Context, in *pb.TaskAssignment) (*pb.TaskA
 	}()
 
 	return &pb.TaskAssignmentResponse{Success: true}, nil
+}
+
+func (s *Leaderserver) TaskCompletionResponse(ctx context.Context, in *pb.Task_Reply) (*pb.Empty, error) {
+	Leader.taskQueueMutex.Lock()
+	defer Leader.taskQueueMutex.Unlock()
+
+	taskID := int(in.TaskId)
+	if _, exists := Leader.taskCompletion[taskID]; exists {
+		Leader.taskCompletion[taskID] = true
+		log.Printf("Task %d marked as completed", taskID)
+	} else {
+		log.Printf("Task %d not found in task completion map", taskID)
+	}
+
+	return &pb.Empty{}, nil
 }
 
 func (s *Leaderserver) ReportLoad(ctx context.Context, in *pb.WorkerLoad) (*pb.Empty, error) {
@@ -302,6 +329,24 @@ func processTaskQueue() {
 		for _, task := range tasks {
 			workerPort, found := getLeastLoadedWorker()
 			if !found {
+				log.Printf("No available workers for task %d", task.ID)
+				task.Priority++
+				Leader.taskQueueMutex.Lock()
+				Leader.taskQueue = append(Leader.taskQueue, task)
+				Leader.taskQueueMutex.Unlock()
+				continue
+			}
+
+			dependent_task_status := true
+
+			for _, dep := range task.dependencyList {
+				if _, exists := Leader.taskCompletion[dep]; !exists {
+					dependent_task_status = false
+					break
+				}
+
+			}
+			if !dependent_task_status {
 				log.Printf("No available workers for task %d", task.ID)
 				task.Priority++
 				Leader.taskQueueMutex.Lock()
@@ -504,6 +549,7 @@ func (s *SchedulerServer) QueryTask(ctx context.Context, in *pb.Task_Query) (*pb
 
 	Leader.taskQueueMutex.Lock()
 	Leader.taskQueue = append(Leader.taskQueue, task)
+	Leader.taskCompletion[task.ID] = false
 	Leader.taskQueueMutex.Unlock()
 
 	log.Printf("Added task %d to queue (type: %d, priority: %d)", task.ID, task.TaskType, task.Priority)

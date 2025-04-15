@@ -15,6 +15,12 @@ proto:
 	rm -rf $(PROTO_DIR)/*.pb.go  # Remove old files
 	protoc $(GO_FLAGS) $(PROTO_FILE)
 
+first:
+	go run ./server/main.go -first_node=true -network_port=50051 -client_port=50021
+
+server:
+	go run ./server/main.go -network_port=50053 
+
 
 clean:
 	rm -f $(PROTO_DIR)/*.pb.go

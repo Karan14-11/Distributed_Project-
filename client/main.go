@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"fmt"
+
 	pb "github.com/Karan14-11/Distributed_Project-/proto"
 	"google.golang.org/grpc"
 )
@@ -153,7 +154,8 @@ func main() {
 		}
 
 		var priority_str string
-		log.Printf("Enter a number for task %d (%s):", i, taskTypeToString(taskType))
+		log.Printf("Enter the priority for task %d (%s):", i, taskTypeToString(taskType))
+		log.Printf("Low or Medium or High")
 		_, err = fmt.Scan(&priority_str)
 		if err != nil {
 			log.Printf("Invalid input: %v", err)
@@ -175,7 +177,7 @@ func main() {
 
 		// Send task to scheduler
 		var inputNumber int
-		log.Printf("Enter a number for task %d (%s):", i, taskTypeToString(taskType))
+		log.Printf("Enter a number for task (size of operation) %d (%s):", i, taskTypeToString(taskType))
 		_, err = fmt.Scan(&inputNumber)
 		if err != nil {
 			log.Printf("Invalid input: %v", err)

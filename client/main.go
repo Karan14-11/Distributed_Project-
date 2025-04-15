@@ -139,7 +139,11 @@ func main() {
 			if err != nil {
 				log.Printf("Failed to check status for Task ID %d: %v", taskId, err)
 			} else {
-				log.Printf("Status for Task ID %d: %s", taskId, statusResp.Status)
+				if statusResp.Status {
+					log.Printf("Task ID %d is completed", taskId)
+				} else {
+					log.Printf("Task ID %d is not completed", taskId)
+				}
 			}
 			continue
 		}

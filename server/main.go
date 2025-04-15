@@ -724,7 +724,7 @@ func connectToNetwork(networkPort int) {
 				node.term++
 				node.electionResetTime = time.Now()
 				votes := 1
-
+				total_votes:=1
 				for _, port := range node.nodePortList {
 					if port == node.port {
 						continue
@@ -749,13 +749,24 @@ func connectToNetwork(networkPort int) {
 						log.Printf("Node %d: Failed to request vote from node %d: %v", node.port, port, err)
 					} else if resp.VoteGranted {
 						votes++
+						total_votes++;
 						log.Printf("Node %d: Received vote from node %d", node.port, port)
+					}else {
+						total_votes++
 					}
 				}
 
-				if votes > len(node.nodePortList)/2 {
+				if votes > total_votes/2 {
 					log.Printf("Node %d: Won election with %d votes (term %d)", node.port, votes, node.term)
 					node.nodeType = "leader"
+					portes:= []int{}
+					for _, port := range node.nodePortList {
+						if port != node.localLeaderPort {
+							portes = append(portes, port)
+						}
+					}
+					node.localLeaderPort= node.port
+					node.nodePortList = append(portes, node.port)
 					node.heartbeatMutex.Unlock()
 					promoteToLeader(node.clientPort, networkPort, node.port, node.nodePortList)
 					return

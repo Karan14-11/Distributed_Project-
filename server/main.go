@@ -75,8 +75,24 @@ var Leader struct {
 	taskQueueMutex  sync.Mutex
 	taskIDNumber    int
 	workerLoads     map[int]float64 // Changed to float64 for CPU percentage
+	timer_worker    map[int]time.Time
 	workerLoadMutex sync.Mutex
 	taskCompletion  map[int]bool
+	taskAssign map[int][]Task
+}
+type LeaderData struct {
+	leaderNodePort  int
+	nodePortList    []int
+	clientNodePort  int
+	globalMutex     sync.Mutex
+	taskQueue       []Task
+	taskQueueMutex  sync.Mutex
+	taskIDNumber    int
+	workerLoads     map[int]float64 // Changed to float64 for CPU percentage
+	timer_worker    map[int]time.Time
+	workerLoadMutex sync.Mutex
+	taskCompletion  map[int]bool
+	taskAssign map[int][]Task
 }
 
 // GetCPUUsage returns the current CPU usage as a percentage (0-100)
@@ -386,7 +402,12 @@ func processTaskQueue() {
 			}
 
 			// Remove assigned task
+			if _, exists := Leader.taskAssign[workerPort]; !exists {
+				Leader.taskAssign[workerPort] = []Task{}
+			}
+			Leader.taskAssign[workerPort] = append(Leader.taskAssign[workerPort], task)
 			Leader.taskQueueMutex.Lock()
+
 			for i, t := range Leader.taskQueue {
 				if t.ID == task.ID {
 					Leader.taskQueue = append(Leader.taskQueue[:i], Leader.taskQueue[i+1:]...)
@@ -408,7 +429,7 @@ func startingNode(port int, clientPort int, nodePort int, initialNodes []int) {
 		s := grpc.NewServer()
 		node := &Node{
 			port:              nodePort,
-			nodeType:          "follower",
+			nodeType:          "leader",
 			electionTimeout:   time.Duration(rand.Intn(4000)+1500) * time.Millisecond,
 			electionResetTime: time.Now(),
 			currentLeaderPort: port,
@@ -479,12 +500,52 @@ func startingNode(port int, clientPort int, nodePort int, initialNodes []int) {
 	Leader.taskQueue = []Task{}
 	Leader.taskIDNumber = 0
 	Leader.workerLoads = make(map[int]float64)
+	Leader.timer_worker = make(map[int]time.Time)
+	Leader.taskCompletion = make(map[int]bool)
+	Leader.taskAssign = make(map[int][]Task)
 	lastSelectedWorker = 0 // Initialize the round-robin counter
 	Leader.globalMutex.Unlock()
 
 	// Start task processor
 	go processTaskQueue()
+	go func() {
+		for{
+			time.Sleep(1 * time.Second)
+			nodes_true:= []int{}
+			for _, port := range Leader.nodePortList {
+				if port == Leader.leaderNodePort {
+					nodes_true= append(nodes_true, port)
+					continue
+				}
 
+
+				if(Leader.timer_worker[port].Add(7*time.Second).Before(time.Now())){
+					log.Printf("Worker %d not responding, removing from list", port)
+					Leader.workerLoadMutex.Lock()
+					delete(Leader.workerLoads, port)
+					Leader.workerLoadMutex.Unlock()
+					Leader.globalMutex.Lock()
+					delete(Leader.timer_worker, port)
+					Leader.globalMutex.Unlock()
+					if tasks, exists := Leader.taskAssign[port]; exists {
+						Leader.taskQueueMutex.Lock()
+						Leader.taskQueue = append(Leader.taskQueue, tasks...)
+						Leader.taskQueueMutex.Unlock()
+					}
+					Leader.globalMutex.Lock()
+					delete(Leader.taskAssign, port)
+					Leader.globalMutex.Unlock()
+					continue
+				}else{
+					nodes_true= append(nodes_true, port)
+				}
+			}
+			Leader.globalMutex.Lock()
+			Leader.nodePortList = nodes_true
+			Leader.globalMutex.Unlock()
+
+		}
+	}()
 	// Start heartbeat sender
 	go func() {
 		for {
@@ -582,7 +643,7 @@ func (w *Node) GetServerPort(ctx context.Context, in *pb.Empty) (*pb.ServerPort,
 	return &pb.ServerPort{Port: int32(w.currentLeaderPort)}, nil
 }
 
-func (s *Leaderserver) Heartbeat(ctx context.Context, in *pb.Empty) (*pb.NodeList, error) {
+func (s *Leaderserver) Heartbeat(ctx context.Context, in *pb.HeartbeatRequest) (*pb.NodeList, error) {
 	Leader.globalMutex.Lock()
 	defer Leader.globalMutex.Unlock()
 
@@ -590,12 +651,75 @@ func (s *Leaderserver) Heartbeat(ctx context.Context, in *pb.Empty) (*pb.NodeLis
 	for i, port := range Leader.nodePortList {
 		nodePorts[i] = int32(port)
 	}
-
+	Leader.timer_worker[int(in.Port)] = time.Now()
+	log.Printf("Received heartbeat from node %d at %s", in.Port, time.Now().Format(time.RFC3339))
 	return &pb.NodeList{
 		NodesPort:  nodePorts,
 		LeaderPort: int32(Leader.leaderNodePort),
 		ClientPort: int32(Leader.clientNodePort),
 		TaskId:     int32(Leader.taskIDNumber),
+		TaskQueue: func() map[int32]*pb.NodeList_Task {
+			taskQueue := make(map[int32]*pb.NodeList_Task)
+			for _, task := range Leader.taskQueue {
+				taskQueue[int32(task.ID)] = &pb.NodeList_Task{
+					Id:             int32(task.ID),
+					TaskType:       int32(task.TaskType),
+					Priority:       int32(task.Priority),
+					Query:          task.Query,
+					AssignedTo:     int32(task.AssignedTo),
+					Status:         task.status,
+					DependencyList: func() []int32 {
+						deps := make([]int32, len(task.dependencyList))
+						for i, dep := range task.dependencyList {
+							deps[i] = int32(dep)
+						}
+						return deps
+					}(),
+				}
+			}
+			return taskQueue
+		}(),
+		WorkerLoads: func() map[int32]float32 {
+			workerLoads := make(map[int32]float32)
+			for port, load := range Leader.workerLoads {
+				workerLoads[int32(port)] = float32(load)
+			}
+			return workerLoads
+		}(),
+		TaskCompletion: func() map[int32]bool {
+			taskCompletion := make(map[int32]bool)
+			for id, completed := range Leader.taskCompletion {
+				taskCompletion[int32(id)] = completed
+			}
+			return taskCompletion
+		}(),
+		TaskAssign: func() map[int32]*pb.NodeList_Task {
+			taskAssign := make(map[int32]*pb.NodeList_Task)
+			for port, tasks := range Leader.taskAssign {
+				for _, task := range tasks {
+					taskAssign[int32(port)] = &pb.NodeList_Task{
+						Id:             int32(task.ID),
+						TaskType:       int32(task.TaskType),
+						Priority:       int32(task.Priority),
+						Query:          task.Query,
+						AssignedTo:     int32(task.AssignedTo),
+						Status:         task.status,
+						DependencyList: func() []int32 {
+							deps := make([]int32, len(task.dependencyList))
+							for i, dep := range task.dependencyList {
+								deps[i] = int32(dep)
+							}
+							return deps
+						}(),
+					}
+				}
+			}
+			return taskAssign
+		}(),
+
+
+
+		
 	}, nil
 }
 
@@ -637,11 +761,49 @@ func promoteToLeader(clientPort, networkPort, nodePort int, nodePortList []int) 
 	Leader.nodePortList = nodePortList
 	Leader.clientNodePort = clientPort
 	Leader.workerLoads = make(map[int]float64)
+
 	Leader.globalMutex.Unlock()
 
 	// Start task processor
 	go processTaskQueue()
+	go func() {
+		for{
+			time.Sleep(1 * time.Second)
+			nodes_true:= []int{}
+			for _, port := range Leader.nodePortList {
+				if port == Leader.leaderNodePort {
+					nodes_true= append(nodes_true, port)
+					continue
+				}
 
+
+				if(Leader.timer_worker[port].Add(7*time.Second).Before(time.Now())){
+					log.Printf("Worker %d not responding, removing from list", port)
+					Leader.workerLoadMutex.Lock()
+					delete(Leader.workerLoads, port)
+					Leader.workerLoadMutex.Unlock()
+					Leader.globalMutex.Lock()
+					delete(Leader.timer_worker, port)
+					Leader.globalMutex.Unlock()
+					if tasks, exists := Leader.taskAssign[port]; exists {
+						Leader.taskQueueMutex.Lock()
+						Leader.taskQueue = append(Leader.taskQueue, tasks...)
+						Leader.taskQueueMutex.Unlock()
+					}
+					Leader.globalMutex.Lock()
+					delete(Leader.taskAssign, port)
+					Leader.globalMutex.Unlock()
+					continue
+				}else{
+					nodes_true= append(nodes_true, port)
+				}
+			}
+			Leader.globalMutex.Lock()
+			Leader.nodePortList = nodes_true
+			Leader.globalMutex.Unlock()
+
+		}
+	}()
 	// Start heartbeat sender
 	go func() {
 		for {
@@ -867,7 +1029,7 @@ func connectToNetwork(networkPort int) {
 
 			client := pb.NewLeaderNodeClient(conn)
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			resp, err := client.Heartbeat(ctx, &pb.Empty{})
+			resp, err := client.Heartbeat(ctx, &pb.HeartbeatRequest{Port: int32(node.port)})
 			cancel()
 
 			if err != nil {
@@ -884,10 +1046,63 @@ func connectToNetwork(networkPort int) {
 			}
 			node.clientPort = int(resp.ClientPort)
 			node.localLeaderPort = int(resp.LeaderPort)
+			node.currentLeaderPort = int(resp.LeaderPort)
 			node.heartbeatMutex.Unlock()
+			Leader.globalMutex.Lock()
+			Leader.leaderNodePort = int(resp.LeaderPort)
+			Leader.nodePortList = make([]int, len(resp.NodesPort))
+			for i, port := range resp.NodesPort {
+				Leader.nodePortList[i] = int(port)
+			}
+			Leader.taskIDNumber = int(resp.TaskId)
+			Leader.taskQueue = []Task{}
+			for id, task := range resp.TaskQueue {
+				Leader.taskQueue = append(Leader.taskQueue, Task{
+					ID:             int(id),
+					TaskType:       int(task.TaskType),
+					Priority:       int(task.Priority),
+					Query:          task.Query,
+					AssignedTo:     int(task.AssignedTo),
+					status:         task.Status,
+					dependencyList: func() []int {
+						deps := make([]int, len(task.DependencyList))
+						for i, dep := range task.DependencyList {
+							deps[i] = int(dep)
+						}
+						return deps
+					}(),
+				})
+			}
+			Leader.workerLoads = make(map[int]float64)
+			for port, load := range resp.WorkerLoads {
+				Leader.workerLoads[int(port)] = float64(load)
+			}
+			Leader.taskCompletion = make(map[int]bool)
+			for id, completed := range resp.TaskCompletion {
+				Leader.taskCompletion[int(id)] = completed
+			}
+			Leader.taskAssign = make(map[int][]Task)
+			for port, task := range resp.TaskAssign {
+				Leader.taskAssign[int(port)] = append(Leader.taskAssign[int(port)], Task{
+					ID:             int(task.Id),
+					TaskType:       int(task.TaskType),
+					Priority:       int(task.Priority),
+					Query:          task.Query,
+					AssignedTo:     int(task.AssignedTo),
+					status:         task.Status,
+					dependencyList: func() []int {
+						deps := make([]int, len(task.DependencyList))
+						for i, dep := range task.DependencyList {
+							deps[i] = int(dep)
+						}
+						return deps
+					}(),
+				})
+			}
+			Leader.globalMutex.Unlock()
 			conn.Close()
 
-			time.Sleep(5 * time.Second)
+			time.Sleep(3 * time.Second)
 		}
 	}()
 

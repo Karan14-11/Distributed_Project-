@@ -6,7 +6,7 @@ option go_package = "Distributed_Project-/proto";
 
 service LeaderNode {
     rpc GetServerPort(Empty) returns (ServerPort) {}
-    rpc Heartbeat(Empty) returns (NodeList) {}
+    rpc Heartbeat(HeartbeatRequest) returns (NodeList) {}
     rpc GetConfiguration(Empty) returns (RaftConfiguration) {}
     rpc AddVoter(AddVoterRequest) returns (Empty) {}
     rpc ReportLoad(WorkerLoad) returns (Empty) {}
@@ -26,6 +26,10 @@ service Scheduler{
     rpc res(Empty) returns (Empty) {};
 }
 
+message HeartbeatRequest {
+    int32 port = 1;
+}
+
 message Task_Query {
     int32 task_type = 1;
     string data_query = 2;
@@ -40,7 +44,21 @@ message NodeList {
     repeated int32 nodes_port = 1;
     int32 leader_port = 2;
     int32 client_port =3;
-    int32 task_id = 4;
+    int32 task_id = 4;  // task id sstarter
+    message Task {
+        int32 id = 1;
+        int32 task_type = 2;
+        int32 priority = 3;
+        string query = 4;
+        int32 assigned_to = 5;
+        bool status = 6;
+        repeated int32 dependency_list = 7;
+    }
+    map<int32, Task> taskQueue = 5;
+    map<int32, float> workerLoads = 6; // Changed to float for CPU percentage
+    map<int32, string> timer_worker = 7; // Assuming time is represented as a string
+    map<int32, bool> taskCompletion = 8;
+    map<int32, Task> taskAssign = 9;
 }
 
 message RequestVoteArgs {

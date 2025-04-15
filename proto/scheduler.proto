@@ -16,6 +16,7 @@ service ServerNode {
     rpc Heartbeat(Empty) returns (Empty) {}
     rpc RequestVote(RequestVoteArgs) returns (RequestVoteReply) {}
     rpc AssignTask(TaskAssignment) returns (TaskAssignmentResponse) {}
+    rpc GetServerPort(Empty) returns (ServerPort) {}
 }
 
 service Scheduler{

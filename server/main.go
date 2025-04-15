@@ -11,6 +11,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -529,6 +530,12 @@ func (s *Leaderserver) GetServerPort(ctx context.Context, in *pb.Empty) (*pb.Ser
 	return &pb.ServerPort{Port: int32(newPort)}, nil
 }
 
+func (w *Node) GetServerPort(ctx context.Context, in *pb.Empty) (*pb.ServerPort, error) {
+
+	log.Print("redirecting to leader")
+	return &pb.ServerPort{Port: int32(w.currentLeaderPort)}, nil
+}
+
 func (s *Leaderserver) Heartbeat(ctx context.Context, in *pb.Empty) (*pb.NodeList, error) {
 	Leader.globalMutex.Lock()
 	defer Leader.globalMutex.Unlock()
@@ -649,14 +656,41 @@ func connectToNetwork(networkPort int) {
 	if err != nil {
 		log.Fatalf("Failed to connect to leader: %v", err)
 	}
-	defer conn.Close()
 
 	client := pb.NewLeaderNodeClient(conn)
 	resp, err := client.GetServerPort(context.Background(), &pb.Empty{})
 	if err != nil {
-		log.Fatalf("Failed to get worker port: %v", err)
-	}
+		conn.Close()
+		conn2, err2 := grpc.Dial("localhost:"+strconv.Itoa(networkPort), grpc.WithInsecure())
+		if err2 != nil {
+			log.Fatalf("Failed to connect to leader: %v", errors.New("failed to connect to leader"))
+		}
+		// print(networkPort)
+		client1 := pb.NewServerNodeClient(conn2)
+		resp1, err1 := client1.GetServerPort(context.Background(), &pb.Empty{})
+		// print(resp1.Port)
+		conn2.Close()
+		conn3, err3 := grpc.Dial("localhost:"+strconv.Itoa(int(resp1.Port)), grpc.WithInsecure())
+		if err3 != nil {
+			log.Fatalf("Failed to connect to lleader: %v", err1)
+		}
+		defer conn3.Close()
+		client3 := pb.NewLeaderNodeClient(conn3)
 
+		// if err1 != nil {
+		// 	log.Fatalf("Failed to get leader port from worker: %v", err)
+		// }
+		resp3, err4 := client3.GetServerPort(context.Background(), &pb.Empty{})
+		if err4 != nil {
+			log.Fatalf("Failed to get worker port from leader: %v", err)
+		}
+
+		resp = resp3
+		networkPort = int(resp1.Port)
+	}
+	// log.Fatalf("Failed to get worker port from leader: %v", err)
+
+	// print("HERE")
 	workerPort := int(resp.Port)
 	log.Printf("Starting worker on port %d", workerPort)
 

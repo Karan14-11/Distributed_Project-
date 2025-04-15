@@ -1,19 +1,22 @@
 package main
+
 import (
 	"context"
+	"flag"
 	"log"
 	"math/rand"
 	"strconv"
 	"time"
 
+	"fmt"
 	pb "github.com/Karan14-11/Distributed_Project-/proto"
 	"google.golang.org/grpc"
 )
 
 // Constants for task types
 const (
-	TASK_MATRIX_MULTIPLICATION = 0
-	TASK_PRIME_FACTORIZATION   = 1
+	MULTIPLICATION = 0
+	ADDITION   = 1
 	TASK_FIBONACCI_SEQUENCE    = 2
 )
 
@@ -27,10 +30,10 @@ const (
 // Function to generate a random matrix multiplication task
 func generateMatrixMultiplication() string {
 	// Generate random dimensions ensuring they're compatible for multiplication
-	rows1 := rand.Intn(5) + 2  // 2-6 rows
-	cols1 := rand.Intn(5) + 2  // 2-6 columns
-	cols2 := rand.Intn(5) + 2  // 2-6 columns
-	
+	rows1 := rand.Intn(5) + 2 // 2-6 rows
+	cols1 := rand.Intn(5) + 2 // 2-6 columns
+	cols2 := rand.Intn(5) + 2 // 2-6 columns
+
 	// Generate first matrix
 	matrix1 := make([][]int, rows1)
 	for i := range matrix1 {
@@ -39,7 +42,7 @@ func generateMatrixMultiplication() string {
 			matrix1[i][j] = rand.Intn(10) // 0-9 values
 		}
 	}
-	
+
 	// Generate second matrix
 	matrix2 := make([][]int, cols1)
 	for i := range matrix2 {
@@ -48,11 +51,11 @@ func generateMatrixMultiplication() string {
 			matrix2[i][j] = rand.Intn(10) // 0-9 values
 		}
 	}
-	
+
 	// Convert to string format
 	query := "MATRIX_MULTIPLY\n"
 	query += strconv.Itoa(rows1) + "," + strconv.Itoa(cols1) + "," + strconv.Itoa(cols2) + "\n"
-	
+
 	// First matrix
 	for i := range matrix1 {
 		for j := range matrix1[i] {
@@ -63,7 +66,7 @@ func generateMatrixMultiplication() string {
 		}
 		query += "\n"
 	}
-	
+
 	// Second matrix
 	for i := range matrix2 {
 		for j := range matrix2[i] {
@@ -74,7 +77,7 @@ func generateMatrixMultiplication() string {
 		}
 		query += "\n"
 	}
-	
+
 	return query
 }
 
@@ -94,10 +97,14 @@ func generateFibonacciSequence() string {
 
 func main() {
 	// Seed the random number generator
+
+	// Parse client port as a flag
+	clientPort := flag.String("port", "7000", "The port on which the client connects to the scheduler")
+	flag.Parse()
 	rand.Seed(time.Now().UnixNano())
 
 	// Connect to the scheduler
-	conn, err := grpc.Dial("localhost:7000", grpc.WithInsecure())
+	conn, err := grpc.Dial("localhost:"+*clientPort, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("Failed to connect: %v", err)
 	}
@@ -105,53 +112,103 @@ func main() {
 
 	client := pb.NewSchedulerClient(conn)
 
-	// Submit a mix of tasks
-	for i := 0; i < 20; i++ {
-		// Determine task type (0, 1, or 2)
-		taskType := i % 3
-		
-		// Determine priority level (0, 1, or 2)
-		priority := rand.Intn(3) // Low (0), Medium (1), High (2)
-		
-		// Generate query based on task type
-		var query string
-		switch taskType {
-		case TASK_MATRIX_MULTIPLICATION:
-			query = generateMatrixMultiplication()
-		case TASK_PRIME_FACTORIZATION:
-			query = generatePrimeFactorization()
-		case TASK_FIBONACCI_SEQUENCE:
-			query = generateFibonacciSequence()
+	// infinite loop
+	for i := 0; i < 100; i++ {
+
+		var action int
+		log.Println("Enter 1 to submit a new task or 2 to check the status of a previous task:")
+		_, err := fmt.Scan(&action)
+		if err != nil || (action != 1 && action != 2) {
+			log.Printf("Invalid input: %v", err)
+			continue
 		}
-		
+
+		if action == 2 {
+			var taskId int
+			log.Println("Enter the Task ID to check the status:")
+			_, err := fmt.Scan(&taskId)
+			if err != nil {
+				log.Printf("Invalid input: %v", err)
+				continue
+			}
+
+			statusResp, err := client.GetTaskStatus(context.Background(), &pb.Task_Reply{
+				TaskId: int32(taskId),
+			})
+			if err != nil {
+				log.Printf("Failed to check status for Task ID %d: %v", taskId, err)
+			} else {
+				log.Printf("Status for Task ID %d: %s", taskId, statusResp.Status)
+			}
+			continue
+		}
+
+		// Determine task type (0, 1, or 2)
+		var taskType int
+		log.Println("Enter the task type (0 for  Multiplication, 1 for Addition, 2 for Fibonacci Sequence):")
+]		_, err = fmt.Scan(&taskType)
+		if err != nil || (taskType != MULTIPLICATION && taskType != ADDITION && taskType != TASK_FIBONACCI_SEQUENCE) {
+			log.Printf("Invalid task type: %v", err)
+			continue
+		}
+
+		var priority_str string
+		log.Printf("Enter a number for task %d (%s):", i, taskTypeToString(taskType))
+		_, err = fmt.Scan(&priority_str)
+		if err != nil {
+			log.Printf("Invalid input: %v", err)
+			continue
+		}
+
+		var priority int
+
+		if priority_str == "low" || priority_str == "Low" {
+			priority = PRIORITY_LOW
+		} else if priority_str == "medium" || priority_str == "Medium" {
+			priority = PRIORITY_MEDIUM
+		} else if priority_str == "high" || priority_str == "High" {
+			priority = PRIORITY_HIGH
+		} else {
+			log.Printf("Invalid priority level: %s", priority_str)
+			continue
+		}
+
 		// Send task to scheduler
+		var inputNumber int
+		log.Printf("Enter a number for task %d (%s):", i, taskTypeToString(taskType))
+		_, err = fmt.Scan(&inputNumber)
+		if err != nil {
+			log.Printf("Invalid input: %v", err)
+			continue
+		}
+		query := strconv.Itoa(inputNumber)
+
 		resp, err := client.QueryTask(context.Background(), &pb.Task_Query{
-			TaskType:   int32(taskType),
-			DataQuery:  query,
-			Priority:   int32(priority),
+			TaskType:  int32(taskType),
+			DataQuery: query,
+			Priority:  int32(priority),
 		})
-		
+
 		if err != nil {
 			log.Printf("Failed to send task %d (%s): %v", i, taskTypeToString(taskType), err)
 		} else {
-			log.Printf("Sent task %d (%s) with priority %s, got ID: %d", 
-				i, 
-				taskTypeToString(taskType), 
+			log.Printf("Sent task %d (%s) with priority %s, got ID: %d",
+				i,
+				taskTypeToString(taskType),
 				priorityToString(priority),
 				resp.TaskId)
 		}
-		
+
 		// Wait a bit before sending next task
-		time.Sleep(500 * time.Millisecond)
 	}
 }
 
 // Helper function to convert task type to string
 func taskTypeToString(taskType int) string {
 	switch taskType {
-	case TASK_MATRIX_MULTIPLICATION:
+	case MULTIPLICATION:
 		return "Matrix Multiplication"
-	case TASK_PRIME_FACTORIZATION:
+	case ADDITION:
 		return "Prime Factorization"
 	case TASK_FIBONACCI_SEQUENCE:
 		return "Fibonacci Sequence"

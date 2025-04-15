@@ -249,10 +249,10 @@ func (s *Node) AssignTask(ctx context.Context, in *pb.TaskAssignment) (*pb.TaskA
 
 	// Get task type
 	taskType := int(in.TaskType)
-	taskTypeStr := taskTypeToString(taskType)
+	// taskTypeStr := taskTypeToString(taskType)
 
-	log.Printf("Worker %d: Starting task %d (%s) with priority %s (CPU: %.2f%%, Tasks: %d)",
-		s.port, in.TaskId, taskTypeStr, priorityToString(int(in.Priority)), cpuLoad, activeTaskCount)
+	log.Printf("Worker %d: Starting task %d  with priority %d (CPU: %.2f%%, Tasks: %d)",
+		s.port, in.TaskId, int(in.Priority), cpuLoad, activeTaskCount)
 	log.Printf("Worker %d: Effective load for task %d: %.2f%%",
 		s.port, in.TaskId, effectiveLoad)
 
@@ -270,33 +270,27 @@ func (s *Node) AssignTask(ctx context.Context, in *pb.TaskAssignment) (*pb.TaskA
 	// Process the task in a goroutine
 	go func() {
 		// Determine processing time based on task type and complexity
-		var processingTime time.Duration
-		var result string
+		var result int
 
 		// Execute the task
 		if taskType == 0 { // Matrix Multiplication
 			// Parse and execute matrix multiplication
-			result = executeMatrixMultiplication(in.Query)
-			processingTime = calculateProcessingTime(taskType, in.Query)
+			result = executeMultiplication(in.Query)
 		} else if taskType == 1 { // Prime Factorization
 			// Parse and execute prime factorization
-			result = executePrimeFactorization(in.Query)
-			processingTime = calculateProcessingTime(taskType, in.Query)
+			result = executeAddition(in.Query)
 		} else if taskType == 2 { // Fibonacci Sequence
 			// Parse and execute Fibonacci calculation
 			result = executeFibonacciSequence(in.Query)
-			processingTime = calculateProcessingTime(taskType, in.Query)
 		} else {
 			// Unknown task type, use default processing time
-			processingTime = time.Duration(rand.Intn(2)+1) * time.Second
-			result = "Unknown task type"
+			result = 0
 		}
 
 		// Simulate processing
-		time.Sleep(processingTime)
-		
-		log.Printf("Worker %d: Task %d (%s) result: %s", 
-			s.port, in.TaskId, taskTypeToString(taskType), result)
+
+		log.Printf("Worker %d: Task %d (%d) result: %d",
+			s.port, in.TaskId, in.TaskType, result)
 
 		// Decrement active tasks counter
 		s.activeTasksMutex.Lock()
@@ -304,8 +298,8 @@ func (s *Node) AssignTask(ctx context.Context, in *pb.TaskAssignment) (*pb.TaskA
 		newActiveTaskCount := s.activeTasks
 		s.activeTasksMutex.Unlock()
 
-		log.Printf("Worker %d: Completed task %d (%s) (remaining tasks: %d)",
-			s.port, in.TaskId, taskTypeToString(taskType), newActiveTaskCount)
+		log.Printf("Worker %d: Completed task %d (%d) (remaining tasks: %d)",
+			s.port, in.TaskId, taskType, newActiveTaskCount)
 
 		// Notify leader about task completion
 		conn, err := grpc.Dial("localhost:"+strconv.Itoa(s.currentLeaderPort), grpc.WithInsecure())
@@ -346,209 +340,53 @@ func (s *Node) AssignTask(ctx context.Context, in *pb.TaskAssignment) (*pb.TaskA
 	return &pb.TaskAssignmentResponse{Success: true}, nil
 }
 
-// Helper functions for task execution
-
-// Calculates appropriate processing time based on task complexity
-func calculateProcessingTime(taskType int, query string) time.Duration {
-	switch taskType {
-	case 0: // Matrix Multiplication
-		lines := strings.Split(query, "\n")
-		if len(lines) < 2 {
-			return time.Second
-		}
-		dimensions := strings.Split(lines[1], ",")
-		if len(dimensions) < 3 {
-			return time.Second
-		}
-		
-		// Extract matrix dimensions
-		rows1, _ := strconv.Atoi(dimensions[0])
-		cols1, _ := strconv.Atoi(dimensions[1])
-		cols2, _ := strconv.Atoi(dimensions[2])
-		
-		// Base time plus time proportional to matrix size
-		baseTime := 500 * time.Millisecond
-		sizeTime := time.Duration(rows1 * cols1 * cols2 * 5) * time.Millisecond
-		return baseTime + sizeTime
-		
-	case 1: // Prime Factorization
-		lines := strings.Split(query, "\n")
-		if len(lines) < 2 {
-			return time.Second
-		}
-		
-		number, _ := strconv.Atoi(lines[1])
-		// Larger numbers take more time
-		baseTime := 300 * time.Millisecond
-		sizeTime := time.Duration(number/1000) * time.Millisecond
-		return baseTime + sizeTime
-		
-	case 2: // Fibonacci
-		lines := strings.Split(query, "\n")
-		if len(lines) < 2 {
-			return time.Second
-		}
-		
-		n, _ := strconv.Atoi(lines[1])
-		// Larger Fibonacci numbers take more time
-		baseTime := 200 * time.Millisecond
-		sizeTime := time.Duration(n*30) * time.Millisecond
-		return baseTime + sizeTime
-		
-	default:
-		return time.Second
-	}
-}
-
 // Executes matrix multiplication
-func executeMatrixMultiplication(query string) string {
-	lines := strings.Split(query, "\n")
-	if len(lines) < 3 {
-		return "Invalid matrix multiplication query format"
+func executeMultiplication(query string) int {
+
+	input, err := strconv.Atoi(query)
+	if err != nil {
+		return 0
 	}
-	
-	// Parse dimensions
-	dimensions := strings.Split(lines[1], ",")
-	if len(dimensions) < 3 {
-		return "Invalid matrix dimensions"
+
+	result := 1
+	for i := 1; i <= input; i++ {
+		result *= i
+		result %= 1000000007
 	}
-	
-	rows1, err1 := strconv.Atoi(dimensions[0])
-	cols1, err2 := strconv.Atoi(dimensions[1])
-	cols2, err3 := strconv.Atoi(dimensions[2])
-	
-	if err1 != nil || err2 != nil || err3 != nil {
-		return "Invalid matrix dimensions"
-	}
-	
-	// Parse first matrix
-	matrix1 := make([][]int, rows1)
-	for i := 0; i < rows1; i++ {
-		if i+2 >= len(lines) {
-			return "Invalid matrix data"
-		}
-		
-		values := strings.Split(lines[i+2], ",")
-		if len(values) < cols1 {
-			return "Invalid matrix row length"
-		}
-		
-		matrix1[i] = make([]int, cols1)
-		for j := 0; j < cols1; j++ {
-			matrix1[i][j], _ = strconv.Atoi(values[j])
-		}
-	}
-	
-	// Parse second matrix
-	matrix2 := make([][]int, cols1)
-	for i := 0; i < cols1; i++ {
-		if i+2+rows1 >= len(lines) {
-			return "Invalid matrix data"
-		}
-		
-		values := strings.Split(lines[i+2+rows1], ",")
-		if len(values) < cols2 {
-			return "Invalid matrix row length"
-		}
-		
-		matrix2[i] = make([]int, cols2)
-		for j := 0; j < cols2; j++ {
-			matrix2[i][j], _ = strconv.Atoi(values[j])
-		}
-	}
-	
-	// Perform matrix multiplication
-	result := make([][]int, rows1)
-	for i := range result {
-		result[i] = make([]int, cols2)
-		for j := range result[i] {
-			for k := 0; k < cols1; k++ {
-				result[i][j] += matrix1[i][k] * matrix2[k][j]
-			}
-		}
-	}
-	
-	// Format result
-	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("Result matrix (%dx%d):\n", rows1, cols2))
-	for i := range result {
-		for j := range result[i] {
-			builder.WriteString(fmt.Sprintf("%d", result[i][j]))
-			if j < len(result[i])-1 {
-				builder.WriteString(", ")
-			}
-		}
-		builder.WriteString("\n")
-	}
-	
-	return builder.String()
+
+	return result
+
 }
 
 // Executes prime factorization
-func executePrimeFactorization(query string) string {
-	lines := strings.Split(query, "\n")
-	if len(lines) < 2 {
-		return "Invalid prime factorization query format"
-	}
-	
-	number, err := strconv.Atoi(lines[1])
+func executeAddition(query string) int {
+	input, err := strconv.Atoi(query)
 	if err != nil {
-		return "Invalid number for factorization"
+		return 0
 	}
-	
-	// Compute prime factors
-	factors := []int{}
-	n := number
-	
-	// Check for 2 as a factor
-	for n%2 == 0 {
-		factors = append(factors, 2)
-		n /= 2
+
+	result := 1
+	for i := 1; i <= input; i++ {
+		result += i
+		result %= 1000000007
 	}
-	
-	// Check for odd factors
-	for i := 3; i*i <= n; i += 2 {
-		for n%i == 0 {
-			factors = append(factors, i)
-			n /= i
-		}
-	}
-	
-	// If n is a prime number greater than 2
-	if n > 2 {
-		factors = append(factors, n)
-	}
-	
-	// Format result
-	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("Prime factorization of %d: ", number))
-	for i, factor := range factors {
-		builder.WriteString(fmt.Sprintf("%d", factor))
-		if i < len(factors)-1 {
-			builder.WriteString(" × ")
-		}
-	}
-	
-	return builder.String()
+
+	return result
 }
 
 // Executes Fibonacci sequence calculation
-func executeFibonacciSequence(query string) string {
-	lines := strings.Split(query, "\n")
-	if len(lines) < 2 {
-		return "Invalid Fibonacci query format"
-	}
-	
-	n, err := strconv.Atoi(lines[1])
+func executeFibonacciSequence(query string) int {
+
+	input, err := strconv.Atoi(query)
 	if err != nil {
-		return "Invalid number for Fibonacci calculation"
+		return 0
 	}
-	
+
 	// Calculate the nth Fibonacci number
-	fib := calculateFibonacci(n)
-	
+	fib := calculateFibonacci(input)
+
 	// Format result
-	return fmt.Sprintf("Fibonacci(%d) = %d", n, fib)
+	return fib
 }
 
 // Calculates the nth Fibonacci number
@@ -558,43 +396,13 @@ func calculateFibonacci(n int) int {
 	} else if n == 1 {
 		return 1
 	}
-	
+
 	a, b := 0, 1
 	for i := 2; i <= n; i++ {
 		a, b = b, a+b
 	}
-	
+
 	return b
-}
-
-// Helper functions for string conversion
-
-// Convert task type to string
-func taskTypeToString(taskType int) string {
-	switch taskType {
-	case 0:
-		return "Matrix Multiplication"
-	case 1:
-		return "Prime Factorization"
-	case 2:
-		return "Fibonacci Sequence"
-	default:
-		return "Unknown Task"
-	}
-}
-
-// Convert priority to string
-func priorityToString(priority int) string {
-	switch priority {
-	case 0:
-		return "Low"
-	case 1:
-		return "Medium"
-	case 2:
-		return "High"
-	default:
-		return "Unknown"
-	}
 }
 
 func (s *Leaderserver) TaskCompletionResponse(ctx context.Context, in *pb.Task_Reply) (*pb.Empty, error) {

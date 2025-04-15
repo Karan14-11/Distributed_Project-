@@ -19,10 +19,9 @@ import (
 	"net"
 	"os/exec"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
-
+	"github.com/shirou/gopsutil/cpu"
 	pb "github.com/Karan14-11/Distributed_Project-/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -98,35 +97,9 @@ type LeaderData struct {
 	taskAssign      map[int][]Task
 }
 
-// GetCPUUsage returns the current CPU usage as a percentage (0-100)
 func getCPUUsage() float64 {
-	// Cross-platform implementation that works on both Linux and macOS
-	var cmd *exec.Cmd
-
-	// Try Linux first
-	cmd = exec.Command("sh", "-c", "grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$4+$5)} END {print usage}'")
-	output, err := cmd.Output()
-	if err == nil && len(output) > 0 {
-		usage, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
-		if err == nil {
-			return usage
-		}
-	}
-
-	// Fallback to macOS command
-	cmd = exec.Command("sh", "-c", "top -l 1 | grep -E '^CPU' | awk '{print $3 + $5}'")
-	output, err = cmd.Output()
-	if err == nil && len(output) > 0 {
-		usage, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
-		if err == nil {
-			return usage
-		}
-	}
-
-	// If all else fails, simulate CPU usage to allow system to function
-	// This simulates a random CPU usage between 20% and 80%
-	log.Printf("Falling back to simulated CPU usage")
-	return 20.0 + rand.Float64()*60.0
+	cpuPercent, _ := cpu.Percent(0, false)
+	return cpuPercent[0]
 }
 
 func getUniqueTaskID() int {
@@ -642,9 +615,8 @@ func startingNode(port int, clientPort int, nodePort int, initialNodes []int) {
 				cpuLoad := getCPUUsage()
 
 				node.cpuUsageMutex.Lock()
-				node.cpuUsage = cpuLoad
+				node.cpuUsage = cpuLoad+float64(node.activeTasks*10)
 				node.cpuUsageMutex.Unlock()
-
 				// Report to leader if we're not the leader
 				if node.nodeType != "leader" {
 					conn, err := grpc.Dial("localhost:"+strconv.Itoa(node.currentLeaderPort), grpc.WithInsecure())
@@ -656,7 +628,7 @@ func startingNode(port int, clientPort int, nodePort int, initialNodes []int) {
 					client := pb.NewLeaderNodeClient(conn)
 					_, err = client.ReportLoad(context.Background(), &pb.WorkerLoad{
 						Port: int32(node.port),
-						Load: int32(cpuLoad),
+						Load: int32(cpuLoad+float64(node.activeTasks*10)),
 					})
 
 					if err != nil {
@@ -1142,7 +1114,7 @@ func connectToNetwork(networkPort int) {
 			cpuLoad := getCPUUsage()
 
 			node.cpuUsageMutex.Lock()
-			node.cpuUsage = cpuLoad
+			node.cpuUsage = cpuLoad+float64(node.activeTasks*10)
 			node.cpuUsageMutex.Unlock()
 
 			// Only report if we're not in election process
@@ -1157,7 +1129,7 @@ func connectToNetwork(networkPort int) {
 				client := pb.NewLeaderNodeClient(conn)
 				_, err = client.ReportLoad(context.Background(), &pb.WorkerLoad{
 					Port: int32(node.port),
-					Load: int32(cpuLoad),
+					Load: int32(cpuLoad+float64(node.activeTasks*10)),
 				})
 
 				if err != nil {

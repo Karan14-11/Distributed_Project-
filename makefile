@@ -19,7 +19,10 @@ first:
 	go run ./server/main.go -first_node=true -network_port=50051 -client_port=50021
 
 server:
-	go run ./server/main.go -network_port=50053 
+	go run ./server/main.go -network_port=50052
+
+client:
+	go run ./client/main.go -port=50021
 
 
 clean:

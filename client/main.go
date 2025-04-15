@@ -15,9 +15,9 @@ import (
 
 // Constants for task types
 const (
-	MULTIPLICATION = 0
-	ADDITION   = 1
-	TASK_FIBONACCI_SEQUENCE    = 2
+	MULTIPLICATION          = 0
+	ADDITION                = 1
+	TASK_FIBONACCI_SEQUENCE = 2
 )
 
 // Constants for priority levels
@@ -146,7 +146,7 @@ func main() {
 		// Determine task type (0, 1, or 2)
 		var taskType int
 		log.Println("Enter the task type (0 for  Multiplication, 1 for Addition, 2 for Fibonacci Sequence):")
-]		_, err = fmt.Scan(&taskType)
+		_, err = fmt.Scan(&taskType)
 		if err != nil || (taskType != MULTIPLICATION && taskType != ADDITION && taskType != TASK_FIBONACCI_SEQUENCE) {
 			log.Printf("Invalid task type: %v", err)
 			continue

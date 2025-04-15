@@ -68,6 +68,7 @@ func (x *HeartbeatRequest) GetPort() int32 {
 type TaskStatus struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Status        bool                   `protobuf:"varint,1,opt,name=status,proto3" json:"status,omitempty"`
+	Result        int32                  `protobuf:"varint,2,opt,name=result,proto3" json:"result,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -107,6 +108,13 @@ func (x *TaskStatus) GetStatus() bool {
 		return x.Status
 	}
 	return false
+}
+
+func (x *TaskStatus) GetResult() int32 {
+	if x != nil {
+		return x.Result
+	}
+	return 0
 }
 
 type Task_Query struct {
@@ -172,6 +180,7 @@ func (x *Task_Query) GetPriority() int32 {
 type Task_Reply struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TaskId        int32                  `protobuf:"varint,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Result        int32                  `protobuf:"varint,2,opt,name=result,proto3" json:"result,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -213,6 +222,13 @@ func (x *Task_Reply) GetTaskId() int32 {
 	return 0
 }
 
+func (x *Task_Reply) GetResult() int32 {
+	if x != nil {
+		return x.Result
+	}
+	return 0
+}
+
 type NodeList struct {
 	state          protoimpl.MessageState   `protogen:"open.v1"`
 	NodesPort      []int32                  `protobuf:"varint,1,rep,packed,name=nodes_port,json=nodesPort,proto3" json:"nodes_port,omitempty"`
@@ -223,7 +239,8 @@ type NodeList struct {
 	WorkerLoads    map[int32]float32        `protobuf:"bytes,6,rep,name=workerLoads,proto3" json:"workerLoads,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"fixed32,2,opt,name=value"`                  // Changed to float for CPU percentage
 	TimerWorker    map[int32]string         `protobuf:"bytes,7,rep,name=timer_worker,json=timerWorker,proto3" json:"timer_worker,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Assuming time is represented as a string
 	TaskCompletion map[int32]bool           `protobuf:"bytes,8,rep,name=taskCompletion,proto3" json:"taskCompletion,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	TaskAssign     map[int32]*NodeList_Task `protobuf:"bytes,9,rep,name=taskAssign,proto3" json:"taskAssign,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	TaskResult     map[int32]int32          `protobuf:"bytes,9,rep,name=taskResult,proto3" json:"taskResult,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"` // Changed to int32 for task id
+	TaskAssign     map[int32]*NodeList_Task `protobuf:"bytes,10,rep,name=taskAssign,proto3" json:"taskAssign,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -310,6 +327,13 @@ func (x *NodeList) GetTimerWorker() map[int32]string {
 func (x *NodeList) GetTaskCompletion() map[int32]bool {
 	if x != nil {
 		return x.TaskCompletion
+	}
+	return nil
+}
+
+func (x *NodeList) GetTaskResult() map[int32]int32 {
+	if x != nil {
+		return x.TaskResult
 	}
 	return nil
 }
@@ -967,19 +991,21 @@ const file_proto_scheduler_proto_rawDesc = "" +
 	"\n" +
 	"\x15proto/scheduler.proto\x12\tscheduler\"&\n" +
 	"\x10HeartbeatRequest\x12\x12\n" +
-	"\x04port\x18\x01 \x01(\x05R\x04port\"$\n" +
+	"\x04port\x18\x01 \x01(\x05R\x04port\"<\n" +
 	"\n" +
 	"TaskStatus\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\bR\x06status\"d\n" +
+	"\x06status\x18\x01 \x01(\bR\x06status\x12\x16\n" +
+	"\x06result\x18\x02 \x01(\x05R\x06result\"d\n" +
 	"\n" +
 	"Task_Query\x12\x1b\n" +
 	"\ttask_type\x18\x01 \x01(\x05R\btaskType\x12\x1d\n" +
 	"\n" +
 	"data_query\x18\x02 \x01(\tR\tdataQuery\x12\x1a\n" +
-	"\bpriority\x18\x03 \x01(\x05R\bpriority\"%\n" +
+	"\bpriority\x18\x03 \x01(\x05R\bpriority\"=\n" +
 	"\n" +
 	"Task_Reply\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\x05R\x06taskId\"\xab\b\n" +
+	"\atask_id\x18\x01 \x01(\x05R\x06taskId\x12\x16\n" +
+	"\x06result\x18\x02 \x01(\x05R\x06result\"\xaf\t\n" +
 	"\bNodeList\x12\x1d\n" +
 	"\n" +
 	"nodes_port\x18\x01 \x03(\x05R\tnodesPort\x12\x1f\n" +
@@ -993,7 +1019,11 @@ const file_proto_scheduler_proto_rawDesc = "" +
 	"\ftimer_worker\x18\a \x03(\v2$.scheduler.NodeList.TimerWorkerEntryR\vtimerWorker\x12O\n" +
 	"\x0etaskCompletion\x18\b \x03(\v2'.scheduler.NodeList.TaskCompletionEntryR\x0etaskCompletion\x12C\n" +
 	"\n" +
-	"taskAssign\x18\t \x03(\v2#.scheduler.NodeList.TaskAssignEntryR\n" +
+	"taskResult\x18\t \x03(\v2#.scheduler.NodeList.TaskResultEntryR\n" +
+	"taskResult\x12C\n" +
+	"\n" +
+	"taskAssign\x18\n" +
+	" \x03(\v2#.scheduler.NodeList.TaskAssignEntryR\n" +
 	"taskAssign\x1a\xc7\x01\n" +
 	"\x04Task\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x05R\x02id\x12\x1b\n" +
@@ -1015,7 +1045,10 @@ const file_proto_scheduler_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aA\n" +
 	"\x13TaskCompletionEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\x05R\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\bR\x05value:\x028\x01\x1aW\n" +
+	"\x05value\x18\x02 \x01(\bR\x05value:\x028\x01\x1a=\n" +
+	"\x0fTaskResultEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\x05R\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1aW\n" +
 	"\x0fTaskAssignEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\x05R\x03key\x12.\n" +
 	"\x05value\x18\x02 \x01(\v2\x18.scheduler.NodeList.TaskR\x05value:\x028\x01\"H\n" +
@@ -1086,7 +1119,7 @@ func file_proto_scheduler_proto_rawDescGZIP() []byte {
 	return file_proto_scheduler_proto_rawDescData
 }
 
-var file_proto_scheduler_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_proto_scheduler_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_proto_scheduler_proto_goTypes = []any{
 	(*HeartbeatRequest)(nil),       // 0: scheduler.HeartbeatRequest
 	(*TaskStatus)(nil),             // 1: scheduler.TaskStatus
@@ -1109,48 +1142,50 @@ var file_proto_scheduler_proto_goTypes = []any{
 	nil,                            // 18: scheduler.NodeList.WorkerLoadsEntry
 	nil,                            // 19: scheduler.NodeList.TimerWorkerEntry
 	nil,                            // 20: scheduler.NodeList.TaskCompletionEntry
-	nil,                            // 21: scheduler.NodeList.TaskAssignEntry
+	nil,                            // 21: scheduler.NodeList.TaskResultEntry
+	nil,                            // 22: scheduler.NodeList.TaskAssignEntry
 }
 var file_proto_scheduler_proto_depIdxs = []int32{
 	17, // 0: scheduler.NodeList.taskQueue:type_name -> scheduler.NodeList.TaskQueueEntry
 	18, // 1: scheduler.NodeList.workerLoads:type_name -> scheduler.NodeList.WorkerLoadsEntry
 	19, // 2: scheduler.NodeList.timer_worker:type_name -> scheduler.NodeList.TimerWorkerEntry
 	20, // 3: scheduler.NodeList.taskCompletion:type_name -> scheduler.NodeList.TaskCompletionEntry
-	21, // 4: scheduler.NodeList.taskAssign:type_name -> scheduler.NodeList.TaskAssignEntry
-	13, // 5: scheduler.RaftConfiguration.servers:type_name -> scheduler.RaftServer
-	16, // 6: scheduler.NodeList.TaskQueueEntry.value:type_name -> scheduler.NodeList.Task
-	16, // 7: scheduler.NodeList.TaskAssignEntry.value:type_name -> scheduler.NodeList.Task
-	10, // 8: scheduler.LeaderNode.GetServerPort:input_type -> scheduler.Empty
-	0,  // 9: scheduler.LeaderNode.Heartbeat:input_type -> scheduler.HeartbeatRequest
-	10, // 10: scheduler.LeaderNode.GetConfiguration:input_type -> scheduler.Empty
-	15, // 11: scheduler.LeaderNode.AddVoter:input_type -> scheduler.AddVoterRequest
-	7,  // 12: scheduler.LeaderNode.ReportLoad:input_type -> scheduler.WorkerLoad
-	3,  // 13: scheduler.LeaderNode.TaskCompletionResponse:input_type -> scheduler.Task_Reply
-	10, // 14: scheduler.ServerNode.Heartbeat:input_type -> scheduler.Empty
-	5,  // 15: scheduler.ServerNode.RequestVote:input_type -> scheduler.RequestVoteArgs
-	8,  // 16: scheduler.ServerNode.AssignTask:input_type -> scheduler.TaskAssignment
-	10, // 17: scheduler.ServerNode.GetServerPort:input_type -> scheduler.Empty
-	2,  // 18: scheduler.Scheduler.QueryTask:input_type -> scheduler.Task_Query
-	10, // 19: scheduler.Scheduler.QueryClientPort:input_type -> scheduler.Empty
-	3,  // 20: scheduler.Scheduler.GetTaskStatus:input_type -> scheduler.Task_Reply
-	11, // 21: scheduler.LeaderNode.GetServerPort:output_type -> scheduler.ServerPort
-	4,  // 22: scheduler.LeaderNode.Heartbeat:output_type -> scheduler.NodeList
-	14, // 23: scheduler.LeaderNode.GetConfiguration:output_type -> scheduler.RaftConfiguration
-	10, // 24: scheduler.LeaderNode.AddVoter:output_type -> scheduler.Empty
-	10, // 25: scheduler.LeaderNode.ReportLoad:output_type -> scheduler.Empty
-	10, // 26: scheduler.LeaderNode.TaskCompletionResponse:output_type -> scheduler.Empty
-	10, // 27: scheduler.ServerNode.Heartbeat:output_type -> scheduler.Empty
-	6,  // 28: scheduler.ServerNode.RequestVote:output_type -> scheduler.RequestVoteReply
-	9,  // 29: scheduler.ServerNode.AssignTask:output_type -> scheduler.TaskAssignmentResponse
-	11, // 30: scheduler.ServerNode.GetServerPort:output_type -> scheduler.ServerPort
-	3,  // 31: scheduler.Scheduler.QueryTask:output_type -> scheduler.Task_Reply
-	12, // 32: scheduler.Scheduler.QueryClientPort:output_type -> scheduler.ClientPort
-	1,  // 33: scheduler.Scheduler.GetTaskStatus:output_type -> scheduler.TaskStatus
-	21, // [21:34] is the sub-list for method output_type
-	8,  // [8:21] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	21, // 4: scheduler.NodeList.taskResult:type_name -> scheduler.NodeList.TaskResultEntry
+	22, // 5: scheduler.NodeList.taskAssign:type_name -> scheduler.NodeList.TaskAssignEntry
+	13, // 6: scheduler.RaftConfiguration.servers:type_name -> scheduler.RaftServer
+	16, // 7: scheduler.NodeList.TaskQueueEntry.value:type_name -> scheduler.NodeList.Task
+	16, // 8: scheduler.NodeList.TaskAssignEntry.value:type_name -> scheduler.NodeList.Task
+	10, // 9: scheduler.LeaderNode.GetServerPort:input_type -> scheduler.Empty
+	0,  // 10: scheduler.LeaderNode.Heartbeat:input_type -> scheduler.HeartbeatRequest
+	10, // 11: scheduler.LeaderNode.GetConfiguration:input_type -> scheduler.Empty
+	15, // 12: scheduler.LeaderNode.AddVoter:input_type -> scheduler.AddVoterRequest
+	7,  // 13: scheduler.LeaderNode.ReportLoad:input_type -> scheduler.WorkerLoad
+	3,  // 14: scheduler.LeaderNode.TaskCompletionResponse:input_type -> scheduler.Task_Reply
+	10, // 15: scheduler.ServerNode.Heartbeat:input_type -> scheduler.Empty
+	5,  // 16: scheduler.ServerNode.RequestVote:input_type -> scheduler.RequestVoteArgs
+	8,  // 17: scheduler.ServerNode.AssignTask:input_type -> scheduler.TaskAssignment
+	10, // 18: scheduler.ServerNode.GetServerPort:input_type -> scheduler.Empty
+	2,  // 19: scheduler.Scheduler.QueryTask:input_type -> scheduler.Task_Query
+	10, // 20: scheduler.Scheduler.QueryClientPort:input_type -> scheduler.Empty
+	3,  // 21: scheduler.Scheduler.GetTaskStatus:input_type -> scheduler.Task_Reply
+	11, // 22: scheduler.LeaderNode.GetServerPort:output_type -> scheduler.ServerPort
+	4,  // 23: scheduler.LeaderNode.Heartbeat:output_type -> scheduler.NodeList
+	14, // 24: scheduler.LeaderNode.GetConfiguration:output_type -> scheduler.RaftConfiguration
+	10, // 25: scheduler.LeaderNode.AddVoter:output_type -> scheduler.Empty
+	10, // 26: scheduler.LeaderNode.ReportLoad:output_type -> scheduler.Empty
+	10, // 27: scheduler.LeaderNode.TaskCompletionResponse:output_type -> scheduler.Empty
+	10, // 28: scheduler.ServerNode.Heartbeat:output_type -> scheduler.Empty
+	6,  // 29: scheduler.ServerNode.RequestVote:output_type -> scheduler.RequestVoteReply
+	9,  // 30: scheduler.ServerNode.AssignTask:output_type -> scheduler.TaskAssignmentResponse
+	11, // 31: scheduler.ServerNode.GetServerPort:output_type -> scheduler.ServerPort
+	3,  // 32: scheduler.Scheduler.QueryTask:output_type -> scheduler.Task_Reply
+	12, // 33: scheduler.Scheduler.QueryClientPort:output_type -> scheduler.ClientPort
+	1,  // 34: scheduler.Scheduler.GetTaskStatus:output_type -> scheduler.TaskStatus
+	22, // [22:35] is the sub-list for method output_type
+	9,  // [9:22] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_proto_scheduler_proto_init() }
@@ -1164,7 +1199,7 @@ func file_proto_scheduler_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_scheduler_proto_rawDesc), len(file_proto_scheduler_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   22,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   3,
 		},

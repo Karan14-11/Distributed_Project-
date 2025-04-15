@@ -140,7 +140,7 @@ func main() {
 				log.Printf("Failed to check status for Task ID %d: %v", taskId, err)
 			} else {
 				if statusResp.Status {
-					log.Printf("Task ID %d is completed", taskId)
+					log.Printf("Task ID %d resulted in %d", taskId, statusResp.Result)
 				} else {
 					log.Printf("Task ID %d is not completed", taskId)
 				}

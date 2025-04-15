@@ -78,6 +78,7 @@ var Leader struct {
 	timer_worker    map[int]time.Time
 	workerLoadMutex sync.Mutex
 	taskCompletion  map[int]bool
+	taskResult      map[int]int
 	taskAssign      map[int][]Task
 }
 
@@ -93,6 +94,7 @@ type LeaderData struct {
 	timer_worker    map[int]time.Time
 	workerLoadMutex sync.Mutex
 	taskCompletion  map[int]bool
+	taskResult      map[int]int
 	taskAssign      map[int][]Task
 }
 
@@ -310,7 +312,7 @@ func (s *Node) AssignTask(ctx context.Context, in *pb.TaskAssignment) (*pb.TaskA
 		defer conn.Close()
 
 		client := pb.NewLeaderNodeClient(conn)
-		_, err = client.TaskCompletionResponse(context.Background(), &pb.Task_Reply{TaskId: in.TaskId})
+		_, err = client.TaskCompletionResponse(context.Background(), &pb.Task_Reply{TaskId: in.TaskId, Result: int32(result)})
 
 		if err != nil {
 			log.Printf("Worker %d: Failed to report task completion for task %d: %v", s.port, in.TaskId, err)
@@ -412,6 +414,7 @@ func (s *Leaderserver) TaskCompletionResponse(ctx context.Context, in *pb.Task_R
 	taskID := int(in.TaskId)
 	if _, exists := Leader.taskCompletion[taskID]; exists {
 		Leader.taskCompletion[taskID] = true
+		Leader.taskResult[taskID] = int(in.Result)
 		log.Printf("Task %d marked as completed", taskID)
 	} else {
 		log.Printf("Task %d not found in task completion map", taskID)
@@ -679,6 +682,7 @@ func startingNode(port int, clientPort int, nodePort int, initialNodes []int) {
 	Leader.workerLoads = make(map[int]float64)
 	Leader.timer_worker = make(map[int]time.Time)
 	Leader.taskCompletion = make(map[int]bool)
+	Leader.taskResult = make(map[int]int)
 	Leader.taskAssign = make(map[int][]Task)
 	lastSelectedWorker = 0 // Initialize the round-robin counter
 	Leader.globalMutex.Unlock()
@@ -787,6 +791,7 @@ func (s *SchedulerServer) QueryTask(ctx context.Context, in *pb.Task_Query) (*pb
 	Leader.taskQueueMutex.Lock()
 	Leader.taskQueue = append(Leader.taskQueue, task)
 	Leader.taskCompletion[task.ID] = false
+	Leader.taskResult[task.ID] = -1
 	Leader.taskQueueMutex.Unlock()
 
 	log.Printf("Added task %d to queue (type: %d, priority: %d)", task.ID, task.TaskType, task.Priority)
@@ -801,7 +806,8 @@ func (s *SchedulerServer) QueryClientPort(ctx context.Context, in *pb.Empty) (*p
 func (s *SchedulerServer) GetTaskStatus(ctx context.Context, in *pb.Task_Reply) (*pb.TaskStatus, error) {
 
 	status := Leader.taskCompletion[int(in.TaskId)]
-	return &pb.TaskStatus{Status: status}, nil
+	result := Leader.taskResult[int(in.TaskId)]
+	return &pb.TaskStatus{Status: status, Result: int32(result)}, nil
 }
 
 func (s *Leaderserver) GetServerPort(ctx context.Context, in *pb.Empty) (*pb.ServerPort, error) {
@@ -879,6 +885,13 @@ func (s *Leaderserver) Heartbeat(ctx context.Context, in *pb.HeartbeatRequest) (
 				taskCompletion[int32(id)] = completed
 			}
 			return taskCompletion
+		}(),
+		TaskResult: func() map[int32]int32 {
+			taskResult := make(map[int32]int32)
+			for id, result := range Leader.taskResult {
+				taskResult[int32(id)] = int32(result)
+			}
+			return taskResult
 		}(),
 		TaskAssign: func() map[int32]*pb.NodeList_Task {
 			taskAssign := make(map[int32]*pb.NodeList_Task)
@@ -1261,6 +1274,10 @@ func connectToNetwork(networkPort int) {
 			Leader.taskCompletion = make(map[int]bool)
 			for id, completed := range resp.TaskCompletion {
 				Leader.taskCompletion[int(id)] = completed
+			}
+			Leader.taskResult = make(map[int]int)
+			for id, result := range resp.TaskResult {
+				Leader.taskResult[int(id)] = int(result)
 			}
 			Leader.taskAssign = make(map[int][]Task)
 			for port, task := range resp.TaskAssign {

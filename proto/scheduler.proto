@@ -33,6 +33,7 @@ message HeartbeatRequest {
 
 message TaskStatus {
     bool status = 1;
+    int32 result  = 2;
 }
 
 message Task_Query {
@@ -43,6 +44,7 @@ message Task_Query {
 
 message Task_Reply {
     int32 task_id = 1;
+    int32 result = 2;
 }
 
 message NodeList {
@@ -63,7 +65,8 @@ message NodeList {
     map<int32, float> workerLoads = 6; // Changed to float for CPU percentage
     map<int32, string> timer_worker = 7; // Assuming time is represented as a string
     map<int32, bool> taskCompletion = 8;
-    map<int32, Task> taskAssign = 9;
+    map<int32, int32> taskResult = 9; // Changed to int32 for task id
+    map<int32, Task> taskAssign = 10;
 }
 
 message RequestVoteArgs {

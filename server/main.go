@@ -437,7 +437,7 @@ func (s *Leaderserver) ReportLoad(ctx context.Context, in *pb.WorkerLoad) (*pb.E
 // Add a lastSelectedWorker variable to the Leader struct
 var lastSelectedWorker int
 
-func getLeastLoadedWorker() (int, bool) {
+func getLeastLoadedWorker(port_leader int) (int, bool) {
 	Leader.workerLoadMutex.Lock()
 	defer Leader.workerLoadMutex.Unlock()
 
@@ -447,7 +447,10 @@ func getLeastLoadedWorker() (int, bool) {
 
 	// First, find the minimum load
 	minLoad := float64(100) // Start with maximum possible CPU percentage
-	for _, load := range Leader.workerLoads {
+	for port, load := range Leader.workerLoads {
+		if port == port_leader {
+			continue
+		}
 		if load < minLoad {
 			minLoad = load
 		}
@@ -456,6 +459,9 @@ func getLeastLoadedWorker() (int, bool) {
 	// Find all workers with load close to minimum (within 1%)
 	candidateWorkers := []int{}
 	for port, load := range Leader.workerLoads {
+		if port == port_leader {
+			continue
+		}
 		if load <= minLoad+1.0 { // Consider workers within 1% of min load as equal
 			candidateWorkers = append(candidateWorkers, port)
 		}
@@ -523,7 +529,7 @@ func processTaskQueue() {
 		}
 
 		for _, task := range tasks {
-			workerPort, found := getLeastLoadedWorker()
+			workerPort, found := getLeastLoadedWorker(Leader.leaderNodePort)
 			if !found {
 				log.Printf("No available workers for task %d", task.ID)
 				task.Priority++
@@ -956,8 +962,6 @@ func promoteToLeader(clientPort, networkPort, nodePort int, nodePortList []int) 
 	Leader.leaderNodePort = nodePort
 	Leader.nodePortList = nodePortList
 	Leader.clientNodePort = clientPort
-	Leader.workerLoads = make(map[int]float64)
-
 	Leader.globalMutex.Unlock()
 
 	// Start task processor
@@ -1270,6 +1274,18 @@ func connectToNetwork(networkPort int) {
 			Leader.workerLoads = make(map[int]float64)
 			for port, load := range resp.WorkerLoads {
 				Leader.workerLoads[int(port)] = float64(load)
+			}
+			delete(Leader.workerLoads, node.port)
+			Leader.timer_worker = make(map[int]time.Time)
+			for _, port := range resp.NodesPort {
+				if timerStr, exists := resp.TimerWorker[int32(port)]; exists {
+					timer, err := time.Parse(time.RFC3339, timerStr)
+					if err == nil {
+						Leader.timer_worker[int(port)] = timer
+					} else {
+						log.Printf("Failed to parse timer for port %d: %v", port, err)
+					}
+				}
 			}
 			Leader.taskCompletion = make(map[int]bool)
 			for id, completed := range resp.TaskCompletion {

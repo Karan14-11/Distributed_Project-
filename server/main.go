@@ -477,6 +477,11 @@ func getLeastLoadedWorker(port_leader int) (int, bool) {
 	}
 
 	// If we have multiple candidates with similar load, use round-robin
+
+	if len(candidateWorkers) == 0 {
+		return 0, false
+	}
+
 	selectedPort := candidateWorkers[0] // Default to first worker
 
 	if len(candidateWorkers) > 1 {
@@ -512,11 +517,12 @@ func processTaskQueue() {
 			continue
 		}
 
-		log.Printf("Processing %d tasks in queue", len(Leader.taskQueue))
+		// log.Printf("Processing %d tasks in queue", len(Leader.taskQueue))
 
 		// Sort tasks by priority
 		tasks := make([]Task, len(Leader.taskQueue))
 		copy(tasks, Leader.taskQueue)
+		Leader.taskQueue = []Task{}
 		Leader.taskQueueMutex.Unlock()
 
 		// Sort by priority (higher priority first)
@@ -592,15 +598,7 @@ func processTaskQueue() {
 				Leader.taskAssign[workerPort] = []Task{}
 			}
 			Leader.taskAssign[workerPort] = append(Leader.taskAssign[workerPort], task)
-			Leader.taskQueueMutex.Lock()
 
-			for i, t := range Leader.taskQueue {
-				if t.ID == task.ID {
-					Leader.taskQueue = append(Leader.taskQueue[:i], Leader.taskQueue[i+1:]...)
-					break
-				}
-			}
-			Leader.taskQueueMutex.Unlock()
 		}
 	}
 }
@@ -859,6 +857,7 @@ func (s *Leaderserver) Heartbeat(ctx context.Context, in *pb.HeartbeatRequest) (
 		TaskId:     int32(Leader.taskIDNumber),
 		TaskQueue: func() map[int32]*pb.NodeList_Task {
 			taskQueue := make(map[int32]*pb.NodeList_Task)
+			// log.Printf("LTQ %d", len(Leader.taskQueue))
 			for _, task := range Leader.taskQueue {
 				taskQueue[int32(task.ID)] = &pb.NodeList_Task{
 					Id:         int32(task.ID),
@@ -1254,6 +1253,7 @@ func connectToNetwork(networkPort int) {
 			}
 			Leader.taskIDNumber = int(resp.TaskId)
 			Leader.taskQueue = []Task{}
+			// log.Printf("Length of tq %d", len(resp.TaskQueue))
 			for id, task := range resp.TaskQueue {
 				Leader.taskQueue = append(Leader.taskQueue, Task{
 					ID:         int(id),

@@ -141,6 +141,94 @@ func (s *Node) Heartbeat(ctx context.Context, in *pb.Empty) (*pb.Empty, error) {
 	return &pb.Empty{}, nil
 }
 
+// func (s *Node) AssignTask(ctx context.Context, in *pb.TaskAssignment) (*pb.TaskAssignmentResponse, error) {
+// 	// Get current CPU load
+// 	cpuLoad := getCPUUsage()
+
+// 	// Increment active tasks counter
+// 	s.activeTasksMutex.Lock()
+// 	s.activeTasks++
+// 	activeTaskCount := s.activeTasks
+// 	s.activeTasksMutex.Unlock()
+
+// 	// Calculate effective load based on both CPU and task count
+// 	effectiveLoad := cpuLoad + float64(activeTaskCount*10) // Each task adds 10% to effective load
+
+// 	s.cpuUsageMutex.Lock()
+// 	s.cpuUsage = effectiveLoad // Use effective load instead of just CPU
+// 	s.cpuUsageMutex.Unlock()
+
+// 	log.Printf("Worker %d: Starting task %d (CPU: %.2f%%, Tasks: %d)",
+// 		s.port, in.TaskId, cpuLoad, activeTaskCount)
+// 	log.Printf("Worker %d: Effective load for task %d: %.2f%%",
+// 		s.port, in.TaskId, effectiveLoad)
+
+// 	// Report new load immediately
+// 	conn, err := grpc.Dial("localhost:"+strconv.Itoa(s.currentLeaderPort), grpc.WithInsecure())
+// 	if err == nil {
+// 		client := pb.NewLeaderNodeClient(conn)
+// 		_, _ = client.ReportLoad(context.Background(), &pb.WorkerLoad{
+// 			Port: int32(s.port),
+// 			Load: int32(effectiveLoad),
+// 		})
+// 		conn.Close()
+// 	}
+
+// 	// Process the task in a goroutine
+// 	go func() {
+// 		// Simulate task processing
+// 		processingTime := time.Duration(rand.Intn(2)+1) * time.Second // Shorter for better testing
+// 		time.Sleep(processingTime)
+
+// 		// Decrement active tasks counter
+// 		s.activeTasksMutex.Lock()
+// 		s.activeTasks--
+// 		newActiveTaskCount := s.activeTasks
+// 		s.activeTasksMutex.Unlock()
+
+// 		log.Printf("Worker %d: Completed task %d (remaining tasks: %d)",
+// 			s.port, in.TaskId, newActiveTaskCount)
+
+// 		// Notify leader about task completion
+// 		conn, err := grpc.Dial("localhost:"+strconv.Itoa(s.currentLeaderPort), grpc.WithInsecure())
+// 		if err != nil {
+// 			log.Printf("Worker %d: Failed to connect to leader to report task completion: %v", s.port, err)
+// 			return
+// 		}
+// 		defer conn.Close()
+
+// 		client := pb.NewLeaderNodeClient(conn)
+// 		_, err = client.TaskCompletionResponse(context.Background(), &pb.Task_Reply{TaskId: in.TaskId})
+
+// 		if err != nil {
+// 			log.Printf("Worker %d: Failed to report task completion for task %d: %v", s.port, in.TaskId, err)
+// 		} else {
+// 			log.Printf("Worker %d: Successfully reported task completion for task %d", s.port, in.TaskId)
+// 		}
+
+// 		// Report updated CPU load after task completion
+// 		currentCpuLoad := getCPUUsage()
+// 		newEffectiveLoad := currentCpuLoad + float64(newActiveTaskCount*10)
+
+// 		s.cpuUsageMutex.Lock()
+// 		s.cpuUsage = newEffectiveLoad
+// 		s.cpuUsageMutex.Unlock()
+
+// 		// Report to leader
+// 		_, err = client.ReportLoad(context.Background(), &pb.WorkerLoad{
+// 			Port: int32(s.port),
+// 			Load: int32(newEffectiveLoad),
+// 		})
+
+// 		if err != nil {
+// 			log.Printf("Worker %d: Failed to report load: %v", s.port, err)
+// 		}
+// 	}()
+
+// 	return &pb.TaskAssignmentResponse{Success: true}, nil
+// }
+
+// Updated AssignTask method for the Node struct
 func (s *Node) AssignTask(ctx context.Context, in *pb.TaskAssignment) (*pb.TaskAssignmentResponse, error) {
 	// Get current CPU load
 	cpuLoad := getCPUUsage()
@@ -158,8 +246,12 @@ func (s *Node) AssignTask(ctx context.Context, in *pb.TaskAssignment) (*pb.TaskA
 	s.cpuUsage = effectiveLoad // Use effective load instead of just CPU
 	s.cpuUsageMutex.Unlock()
 
-	log.Printf("Worker %d: Starting task %d (CPU: %.2f%%, Tasks: %d)",
-		s.port, in.TaskId, cpuLoad, activeTaskCount)
+	// Get task type
+	taskType := int(in.TaskType)
+	taskTypeStr := taskTypeToString(taskType)
+
+	log.Printf("Worker %d: Starting task %d (%s) with priority %s (CPU: %.2f%%, Tasks: %d)",
+		s.port, in.TaskId, taskTypeStr, priorityToString(int(in.Priority)), cpuLoad, activeTaskCount)
 	log.Printf("Worker %d: Effective load for task %d: %.2f%%",
 		s.port, in.TaskId, effectiveLoad)
 
@@ -176,9 +268,34 @@ func (s *Node) AssignTask(ctx context.Context, in *pb.TaskAssignment) (*pb.TaskA
 
 	// Process the task in a goroutine
 	go func() {
-		// Simulate task processing
-		processingTime := time.Duration(rand.Intn(2)+1) * time.Second // Shorter for better testing
+		// Determine processing time based on task type and complexity
+		var processingTime time.Duration
+		var result string
+
+		// Execute the task
+		if taskType == 0 { // Matrix Multiplication
+			// Parse and execute matrix multiplication
+			result = executeMatrixMultiplication(in.Query)
+			processingTime = calculateProcessingTime(taskType, in.Query)
+		} else if taskType == 1 { // Prime Factorization
+			// Parse and execute prime factorization
+			result = executePrimeFactorization(in.Query)
+			processingTime = calculateProcessingTime(taskType, in.Query)
+		} else if taskType == 2 { // Fibonacci Sequence
+			// Parse and execute Fibonacci calculation
+			result = executeFibonacciSequence(in.Query)
+			processingTime = calculateProcessingTime(taskType, in.Query)
+		} else {
+			// Unknown task type, use default processing time
+			processingTime = time.Duration(rand.Intn(2)+1) * time.Second
+			result = "Unknown task type"
+		}
+
+		// Simulate processing
 		time.Sleep(processingTime)
+		
+		log.Printf("Worker %d: Task %d (%s) result: %s", 
+			s.port, in.TaskId, taskTypeToString(taskType), result)
 
 		// Decrement active tasks counter
 		s.activeTasksMutex.Lock()
@@ -186,8 +303,8 @@ func (s *Node) AssignTask(ctx context.Context, in *pb.TaskAssignment) (*pb.TaskA
 		newActiveTaskCount := s.activeTasks
 		s.activeTasksMutex.Unlock()
 
-		log.Printf("Worker %d: Completed task %d (remaining tasks: %d)",
-			s.port, in.TaskId, newActiveTaskCount)
+		log.Printf("Worker %d: Completed task %d (%s) (remaining tasks: %d)",
+			s.port, in.TaskId, taskTypeToString(taskType), newActiveTaskCount)
 
 		// Notify leader about task completion
 		conn, err := grpc.Dial("localhost:"+strconv.Itoa(s.currentLeaderPort), grpc.WithInsecure())
@@ -226,6 +343,257 @@ func (s *Node) AssignTask(ctx context.Context, in *pb.TaskAssignment) (*pb.TaskA
 	}()
 
 	return &pb.TaskAssignmentResponse{Success: true}, nil
+}
+
+// Helper functions for task execution
+
+// Calculates appropriate processing time based on task complexity
+func calculateProcessingTime(taskType int, query string) time.Duration {
+	switch taskType {
+	case 0: // Matrix Multiplication
+		lines := strings.Split(query, "\n")
+		if len(lines) < 2 {
+			return time.Second
+		}
+		dimensions := strings.Split(lines[1], ",")
+		if len(dimensions) < 3 {
+			return time.Second
+		}
+		
+		// Extract matrix dimensions
+		rows1, _ := strconv.Atoi(dimensions[0])
+		cols1, _ := strconv.Atoi(dimensions[1])
+		cols2, _ := strconv.Atoi(dimensions[2])
+		
+		// Base time plus time proportional to matrix size
+		baseTime := 500 * time.Millisecond
+		sizeTime := time.Duration(rows1 * cols1 * cols2 * 5) * time.Millisecond
+		return baseTime + sizeTime
+		
+	case 1: // Prime Factorization
+		lines := strings.Split(query, "\n")
+		if len(lines) < 2 {
+			return time.Second
+		}
+		
+		number, _ := strconv.Atoi(lines[1])
+		// Larger numbers take more time
+		baseTime := 300 * time.Millisecond
+		sizeTime := time.Duration(number/1000) * time.Millisecond
+		return baseTime + sizeTime
+		
+	case 2: // Fibonacci
+		lines := strings.Split(query, "\n")
+		if len(lines) < 2 {
+			return time.Second
+		}
+		
+		n, _ := strconv.Atoi(lines[1])
+		// Larger Fibonacci numbers take more time
+		baseTime := 200 * time.Millisecond
+		sizeTime := time.Duration(n*30) * time.Millisecond
+		return baseTime + sizeTime
+		
+	default:
+		return time.Second
+	}
+}
+
+// Executes matrix multiplication
+func executeMatrixMultiplication(query string) string {
+	lines := strings.Split(query, "\n")
+	if len(lines) < 3 {
+		return "Invalid matrix multiplication query format"
+	}
+	
+	// Parse dimensions
+	dimensions := strings.Split(lines[1], ",")
+	if len(dimensions) < 3 {
+		return "Invalid matrix dimensions"
+	}
+	
+	rows1, err1 := strconv.Atoi(dimensions[0])
+	cols1, err2 := strconv.Atoi(dimensions[1])
+	cols2, err3 := strconv.Atoi(dimensions[2])
+	
+	if err1 != nil || err2 != nil || err3 != nil {
+		return "Invalid matrix dimensions"
+	}
+	
+	// Parse first matrix
+	matrix1 := make([][]int, rows1)
+	for i := 0; i < rows1; i++ {
+		if i+2 >= len(lines) {
+			return "Invalid matrix data"
+		}
+		
+		values := strings.Split(lines[i+2], ",")
+		if len(values) < cols1 {
+			return "Invalid matrix row length"
+		}
+		
+		matrix1[i] = make([]int, cols1)
+		for j := 0; j < cols1; j++ {
+			matrix1[i][j], _ = strconv.Atoi(values[j])
+		}
+	}
+	
+	// Parse second matrix
+	matrix2 := make([][]int, cols1)
+	for i := 0; i < cols1; i++ {
+		if i+2+rows1 >= len(lines) {
+			return "Invalid matrix data"
+		}
+		
+		values := strings.Split(lines[i+2+rows1], ",")
+		if len(values) < cols2 {
+			return "Invalid matrix row length"
+		}
+		
+		matrix2[i] = make([]int, cols2)
+		for j := 0; j < cols2; j++ {
+			matrix2[i][j], _ = strconv.Atoi(values[j])
+		}
+	}
+	
+	// Perform matrix multiplication
+	result := make([][]int, rows1)
+	for i := range result {
+		result[i] = make([]int, cols2)
+		for j := range result[i] {
+			for k := 0; k < cols1; k++ {
+				result[i][j] += matrix1[i][k] * matrix2[k][j]
+			}
+		}
+	}
+	
+	// Format result
+	var builder strings.Builder
+	builder.WriteString(fmt.Sprintf("Result matrix (%dx%d):\n", rows1, cols2))
+	for i := range result {
+		for j := range result[i] {
+			builder.WriteString(fmt.Sprintf("%d", result[i][j]))
+			if j < len(result[i])-1 {
+				builder.WriteString(", ")
+			}
+		}
+		builder.WriteString("\n")
+	}
+	
+	return builder.String()
+}
+
+// Executes prime factorization
+func executePrimeFactorization(query string) string {
+	lines := strings.Split(query, "\n")
+	if len(lines) < 2 {
+		return "Invalid prime factorization query format"
+	}
+	
+	number, err := strconv.Atoi(lines[1])
+	if err != nil {
+		return "Invalid number for factorization"
+	}
+	
+	// Compute prime factors
+	factors := []int{}
+	n := number
+	
+	// Check for 2 as a factor
+	for n%2 == 0 {
+		factors = append(factors, 2)
+		n /= 2
+	}
+	
+	// Check for odd factors
+	for i := 3; i*i <= n; i += 2 {
+		for n%i == 0 {
+			factors = append(factors, i)
+			n /= i
+		}
+	}
+	
+	// If n is a prime number greater than 2
+	if n > 2 {
+		factors = append(factors, n)
+	}
+	
+	// Format result
+	var builder strings.Builder
+	builder.WriteString(fmt.Sprintf("Prime factorization of %d: ", number))
+	for i, factor := range factors {
+		builder.WriteString(fmt.Sprintf("%d", factor))
+		if i < len(factors)-1 {
+			builder.WriteString(" × ")
+		}
+	}
+	
+	return builder.String()
+}
+
+// Executes Fibonacci sequence calculation
+func executeFibonacciSequence(query string) string {
+	lines := strings.Split(query, "\n")
+	if len(lines) < 2 {
+		return "Invalid Fibonacci query format"
+	}
+	
+	n, err := strconv.Atoi(lines[1])
+	if err != nil {
+		return "Invalid number for Fibonacci calculation"
+	}
+	
+	// Calculate the nth Fibonacci number
+	fib := calculateFibonacci(n)
+	
+	// Format result
+	return fmt.Sprintf("Fibonacci(%d) = %d", n, fib)
+}
+
+// Calculates the nth Fibonacci number
+func calculateFibonacci(n int) int {
+	if n <= 0 {
+		return 0
+	} else if n == 1 {
+		return 1
+	}
+	
+	a, b := 0, 1
+	for i := 2; i <= n; i++ {
+		a, b = b, a+b
+	}
+	
+	return b
+}
+
+// Helper functions for string conversion
+
+// Convert task type to string
+func taskTypeToString(taskType int) string {
+	switch taskType {
+	case 0:
+		return "Matrix Multiplication"
+	case 1:
+		return "Prime Factorization"
+	case 2:
+		return "Fibonacci Sequence"
+	default:
+		return "Unknown Task"
+	}
+}
+
+// Convert priority to string
+func priorityToString(priority int) string {
+	switch priority {
+	case 0:
+		return "Low"
+	case 1:
+		return "Medium"
+	case 2:
+		return "High"
+	default:
+		return "Unknown"
+	}
 }
 
 func (s *Leaderserver) TaskCompletionResponse(ctx context.Context, in *pb.Task_Reply) (*pb.Empty, error) {
@@ -1046,7 +1414,6 @@ func connectToNetwork(networkPort int) {
 			}
 			node.clientPort = int(resp.ClientPort)
 			node.localLeaderPort = int(resp.LeaderPort)
-			node.currentLeaderPort = int(resp.LeaderPort)
 			node.heartbeatMutex.Unlock()
 			Leader.globalMutex.Lock()
 			Leader.leaderNodePort = int(resp.LeaderPort)

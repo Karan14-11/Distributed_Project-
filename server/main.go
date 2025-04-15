@@ -534,6 +534,8 @@ func processTaskQueue() {
 			}
 		}
 
+		// log.Print("size of task queue: ", len(tasks))
+
 		for _, task := range tasks {
 			workerPort, found := getLeastLoadedWorker(Leader.leaderNodePort)
 			if !found {
@@ -548,12 +550,22 @@ func processTaskQueue() {
 			dependent_task_status := true
 
 			for _, dep := range task.dependencyList {
-				if _, exists := Leader.taskCompletion[dep]; !exists {
+				if a, _ := Leader.taskCompletion[dep]; a == false {
 					dependent_task_status = false
 					break
 				}
 
 			}
+
+			// if len(task.dependencyList) > 0 {
+			// 	log.Printf("Task %d has dependencies: %v", task.ID, task.dependencyList)
+			// 	log.Printf("Dependent task status: %v", Leader.taskCompletion[task.dependencyList[0]])
+			// } else {
+			// 	log.Printf("Task %d has no dependencies", task.ID)
+			// }
+
+			// log.Print("Dependent task status: ", dependent_task_status)
+
 			if !dependent_task_status {
 				log.Printf("No available workers for task %d", task.ID)
 				task.Priority++
@@ -790,6 +802,13 @@ func (s *SchedulerServer) QueryTask(ctx context.Context, in *pb.Task_Query) (*pb
 		TaskType: int(in.TaskType),
 		Priority: int(in.Priority),
 		Query:    in.DataQuery,
+		dependencyList: func() []int {
+			deps := make([]int, len(in.DependencyList))
+			for i, dep := range in.DependencyList {
+				deps[i] = int(dep)
+			}
+			return deps
+		}(),
 	}
 
 	Leader.taskQueueMutex.Lock()

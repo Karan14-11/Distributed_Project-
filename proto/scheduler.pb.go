@@ -118,12 +118,13 @@ func (x *TaskStatus) GetResult() int32 {
 }
 
 type Task_Query struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskType      int32                  `protobuf:"varint,1,opt,name=task_type,json=taskType,proto3" json:"task_type,omitempty"`
-	DataQuery     string                 `protobuf:"bytes,2,opt,name=data_query,json=dataQuery,proto3" json:"data_query,omitempty"`
-	Priority      int32                  `protobuf:"varint,3,opt,name=priority,proto3" json:"priority,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	TaskType       int32                  `protobuf:"varint,1,opt,name=task_type,json=taskType,proto3" json:"task_type,omitempty"`
+	DataQuery      string                 `protobuf:"bytes,2,opt,name=data_query,json=dataQuery,proto3" json:"data_query,omitempty"`
+	Priority       int32                  `protobuf:"varint,3,opt,name=priority,proto3" json:"priority,omitempty"`
+	DependencyList []int32                `protobuf:"varint,4,rep,packed,name=dependency_list,json=dependencyList,proto3" json:"dependency_list,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Task_Query) Reset() {
@@ -175,6 +176,13 @@ func (x *Task_Query) GetPriority() int32 {
 		return x.Priority
 	}
 	return 0
+}
+
+func (x *Task_Query) GetDependencyList() []int32 {
+	if x != nil {
+		return x.DependencyList
+	}
+	return nil
 }
 
 type Task_Reply struct {
@@ -995,13 +1003,14 @@ const file_proto_scheduler_proto_rawDesc = "" +
 	"\n" +
 	"TaskStatus\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\bR\x06status\x12\x16\n" +
-	"\x06result\x18\x02 \x01(\x05R\x06result\"d\n" +
+	"\x06result\x18\x02 \x01(\x05R\x06result\"\x8d\x01\n" +
 	"\n" +
 	"Task_Query\x12\x1b\n" +
 	"\ttask_type\x18\x01 \x01(\x05R\btaskType\x12\x1d\n" +
 	"\n" +
 	"data_query\x18\x02 \x01(\tR\tdataQuery\x12\x1a\n" +
-	"\bpriority\x18\x03 \x01(\x05R\bpriority\"=\n" +
+	"\bpriority\x18\x03 \x01(\x05R\bpriority\x12'\n" +
+	"\x0fdependency_list\x18\x04 \x03(\x05R\x0edependencyList\"=\n" +
 	"\n" +
 	"Task_Reply\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\x05R\x06taskId\x12\x16\n" +

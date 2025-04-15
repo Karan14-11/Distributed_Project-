@@ -187,12 +187,42 @@ func main() {
 			log.Printf("Invalid input: %v", err)
 			continue
 		}
+
+		// Take input for the size of the array
+		var arraySize int
+		log.Printf("Enter the dependent tasks %d (%s):", i, taskTypeToString(taskType))
+		_, err = fmt.Scan(&arraySize)
+		if err != nil || arraySize < 0 {
+			log.Printf("Invalid array size: %v", err)
+			continue
+		}
+
+		// Take input for the array elements
+		array := make([]int, arraySize)
+		log.Printf("Enter %d task ids of dependent tasks:", arraySize)
+		for j := 0; j < arraySize; j++ {
+			_, err = fmt.Scan(&array[j])
+			if err != nil {
+				log.Printf("Invalid input for array element %d: %v", j, err)
+				continue
+			}
+		}
+
+		// Convert array to a comma-separated string
+
 		query := strconv.Itoa(inputNumber)
 
+		// Convert array from []int to []int32
+		dependencyList := make([]int32, len(array))
+		for i, v := range array {
+			dependencyList[i] = int32(v)
+		}
+
 		resp, err := client.QueryTask(context.Background(), &pb.Task_Query{
-			TaskType:  int32(taskType),
-			DataQuery: query,
-			Priority:  int32(priority),
+			TaskType:       int32(taskType),
+			DataQuery:      query,
+			Priority:       int32(priority),
+			DependencyList: dependencyList,
 		})
 
 		if err != nil {

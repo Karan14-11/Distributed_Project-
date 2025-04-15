@@ -40,6 +40,7 @@ message Task_Query {
     int32 task_type = 1;
     string data_query = 2;
     int32 priority = 3;
+    repeated int32 dependency_list = 4;
 }
 
 message Task_Reply {

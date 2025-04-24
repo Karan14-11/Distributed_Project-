@@ -14,6 +14,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	pb "github.com/Karan14-11/Distributed_Project-/proto"
+	"github.com/shirou/gopsutil/cpu"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 	"log"
 	"math/rand"
 	"net"
@@ -21,10 +25,6 @@ import (
 	"strconv"
 	"sync"
 	"time"
-	"github.com/shirou/gopsutil/cpu"
-	pb "github.com/Karan14-11/Distributed_Project-/proto"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 )
 
 type Task struct {
@@ -615,7 +615,7 @@ func startingNode(port int, clientPort int, nodePort int, initialNodes []int) {
 				cpuLoad := getCPUUsage()
 
 				node.cpuUsageMutex.Lock()
-				node.cpuUsage = cpuLoad+float64(node.activeTasks*10)
+				node.cpuUsage = cpuLoad + float64(node.activeTasks*10)
 				node.cpuUsageMutex.Unlock()
 				// Report to leader if we're not the leader
 				if node.nodeType != "leader" {
@@ -628,7 +628,7 @@ func startingNode(port int, clientPort int, nodePort int, initialNodes []int) {
 					client := pb.NewLeaderNodeClient(conn)
 					_, err = client.ReportLoad(context.Background(), &pb.WorkerLoad{
 						Port: int32(node.port),
-						Load: int32(cpuLoad+float64(node.activeTasks*10)),
+						Load: int32(cpuLoad + float64(node.activeTasks*10)),
 					})
 
 					if err != nil {
@@ -809,7 +809,7 @@ func (s *Leaderserver) GetServerPort(ctx context.Context, in *pb.Empty) (*pb.Ser
 	Leader.globalMutex.Lock()
 	defer Leader.globalMutex.Unlock()
 
-	newPort := 50051
+	newPort := 5000
 	for _, port := range Leader.nodePortList {
 		if port >= newPort {
 			newPort = port + 1
@@ -1114,7 +1114,7 @@ func connectToNetwork(networkPort int) {
 			cpuLoad := getCPUUsage()
 
 			node.cpuUsageMutex.Lock()
-			node.cpuUsage = cpuLoad+float64(node.activeTasks*10)
+			node.cpuUsage = cpuLoad + float64(node.activeTasks*10)
 			node.cpuUsageMutex.Unlock()
 
 			// Only report if we're not in election process
@@ -1129,7 +1129,7 @@ func connectToNetwork(networkPort int) {
 				client := pb.NewLeaderNodeClient(conn)
 				_, err = client.ReportLoad(context.Background(), &pb.WorkerLoad{
 					Port: int32(node.port),
-					Load: int32(cpuLoad+float64(node.activeTasks*10)),
+					Load: int32(cpuLoad + float64(node.activeTasks*10)),
 				})
 
 				if err != nil {

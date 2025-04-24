@@ -243,9 +243,9 @@ func main() {
 func taskTypeToString(taskType int) string {
 	switch taskType {
 	case MULTIPLICATION:
-		return "Matrix Multiplication"
+		return "Multiplication"
 	case ADDITION:
-		return "Prime Factorization"
+		return "Add "
 	case TASK_FIBONACCI_SEQUENCE:
 		return "Fibonacci Sequence"
 	default:

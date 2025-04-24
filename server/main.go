@@ -799,7 +799,8 @@ func (s *SchedulerServer) QueryClientPort(ctx context.Context, in *pb.Empty) (*p
 }
 
 func (s *SchedulerServer) GetTaskStatus(ctx context.Context, in *pb.Task_Reply) (*pb.TaskStatus, error) {
-
+	Leader.taskQueueMutex.Lock()
+	defer Leader.taskQueueMutex.Unlock()
 	status := Leader.taskCompletion[int(in.TaskId)]
 	result := Leader.taskResult[int(in.TaskId)]
 	return &pb.TaskStatus{Status: status, Result: int32(result)}, nil
@@ -833,13 +834,13 @@ func (w *Node) GetServerPort(ctx context.Context, in *pb.Empty) (*pb.ServerPort,
 
 func (s *Leaderserver) Heartbeat(ctx context.Context, in *pb.HeartbeatRequest) (*pb.NodeList, error) {
 	Leader.globalMutex.Lock()
-	defer Leader.globalMutex.Unlock()
 
 	nodePorts := make([]int32, len(Leader.nodePortList))
 	for i, port := range Leader.nodePortList {
 		nodePorts[i] = int32(port)
 	}
 	Leader.timer_worker[int(in.Port)] = time.Now()
+	Leader.globalMutex.Unlock()
 	log.Printf("Received heartbeat from node %d at %s", in.Port, time.Now().Format(time.RFC3339))
 	return &pb.NodeList{
 		NodesPort:  nodePorts,
@@ -849,6 +850,8 @@ func (s *Leaderserver) Heartbeat(ctx context.Context, in *pb.HeartbeatRequest) (
 		TaskQueue: func() map[int32]*pb.NodeList_Task {
 			taskQueue := make(map[int32]*pb.NodeList_Task)
 			// log.Printf("LTQ %d", len(Leader.taskQueue))
+			Leader.taskQueueMutex.Lock()
+			defer Leader.taskQueueMutex.Unlock()
 			for _, task := range Leader.taskQueue {
 				taskQueue[int32(task.ID)] = &pb.NodeList_Task{
 					Id:         int32(task.ID),
@@ -869,6 +872,8 @@ func (s *Leaderserver) Heartbeat(ctx context.Context, in *pb.HeartbeatRequest) (
 			return taskQueue
 		}(),
 		WorkerLoads: func() map[int32]float32 {
+			Leader.workerLoadMutex.Lock()
+			defer Leader.workerLoadMutex.Unlock()
 			workerLoads := make(map[int32]float32)
 			for port, load := range Leader.workerLoads {
 				workerLoads[int32(port)] = float32(load)
@@ -876,6 +881,8 @@ func (s *Leaderserver) Heartbeat(ctx context.Context, in *pb.HeartbeatRequest) (
 			return workerLoads
 		}(),
 		TaskCompletion: func() map[int32]bool {
+			Leader.taskQueueMutex.Lock()
+			defer Leader.taskQueueMutex.Unlock()
 			taskCompletion := make(map[int32]bool)
 			for id, completed := range Leader.taskCompletion {
 				taskCompletion[int32(id)] = completed
@@ -883,6 +890,8 @@ func (s *Leaderserver) Heartbeat(ctx context.Context, in *pb.HeartbeatRequest) (
 			return taskCompletion
 		}(),
 		TaskResult: func() map[int32]int32 {
+			Leader.taskQueueMutex.Lock()
+			defer Leader.taskQueueMutex.Unlock()
 			taskResult := make(map[int32]int32)
 			for id, result := range Leader.taskResult {
 				taskResult[int32(id)] = int32(result)
@@ -890,6 +899,8 @@ func (s *Leaderserver) Heartbeat(ctx context.Context, in *pb.HeartbeatRequest) (
 			return taskResult
 		}(),
 		TaskAssign: func() map[int32]*pb.NodeList_Task {
+			Leader.taskQueueMutex.Lock()
+			defer Leader.taskQueueMutex.Unlock()
 			taskAssign := make(map[int32]*pb.NodeList_Task)
 			for port, tasks := range Leader.taskAssign {
 				for _, task := range tasks {
